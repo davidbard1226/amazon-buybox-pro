@@ -255,6 +255,20 @@
       });
       return true;
     }
+    if (msg && msg.type === 'BBP_PROBE') {
+      // Content-based detection: Seller Central is an SPA, the URL does NOT
+      // change when you navigate to Manage Pricing — only the table matters.
+      var table = findPricingTable();
+      var map = table ? getHeaderMap(table) : null;
+      sendResponse({
+        url: location.href,
+        hasTable: !!table,
+        headers: map ? Object.keys(map).join(',') : null,
+        rows: table ? getBodyRows(table).length : 0,
+        title: document.title
+      });
+      return true;
+    }
   });
 
   function clickNext() {
@@ -275,8 +289,11 @@
 
   /* ── auto-parse on load if this is the pricing page ─────── */
   function isPricingPage() {
-    return /\/pricing\/managepricing/i.test(location.href) ||
-           /\/pricing\/pricing/i.test(location.href);
+    // URL match OR content match — Seller Central is an SPA, so the URL often
+    // stays on /amazonsell/business even when Manage Pricing is displayed.
+    if (/\/pricing\/managepricing/i.test(location.href)) return true;
+    if (/\/pricing\/pricing/i.test(location.href)) return true;
+    return !!findPricingTable();
   }
 
   if (isPricingPage()) {

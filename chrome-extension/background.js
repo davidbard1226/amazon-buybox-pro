@@ -17,9 +17,13 @@ function saveScanState() {
 }
 
 async function findOrOpenSellerTab() {
+  // Prefer the ACTIVE tab if it's Seller Central — the user may be sitting on
+  // the Manage Pricing page while an older home-page tab also exists.
+  const active = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (active[0] && /sellercentral\.amazon\.co\.za/.test(active[0].url || '')) return active[0];
   const tabs = await chrome.tabs.query({ url: 'https://sellercentral.amazon.co.za/*' });
   if (tabs.length > 0) return tabs[0];
-  // Try to open the pricing page (user may need to log in)
+  // Try to open the Seller Central home (user may need to log in)
   const tab = await chrome.tabs.create({ url: SELLER_URLS[0], active: false });
   return tab;
 }

@@ -29,8 +29,29 @@ function showDiag() {
 }
 
 async function findSellerTab() {
+  // Prefer the ACTIVE tab if it's Seller Central, else the first match
+  const active = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (active[0] && /sellercentral\.amazon\.co\.za/.test(active[0].url || '')) return active[0];
   const tabs = await chrome.tabs.query({ url: 'https://sellercentral.amazon.co.za/*' });
   return tabs.length > 0 ? tabs[0] : null;
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+async function probeTab(tab) {
+  // Seller Central is an SPA — the URL does NOT change on navigation, so we
+  // probe the page CONTENT for the pricing table. Auto-inject the content
+  // script first (tabs opened before the extension loaded have no script).
+  if (!tab || !tab.id) return null;
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content-seller.js'] });
+  } catch (e) { /* already injected or not injectable */ }
+  await sleep(600);
+  try {
+    return await chrome.tabs.sendMessage(tab.id, { type: 'BBP_PROBE' });
+  } catch (e) {
+    return null;
+  }
 }
 
 function refresh() {
@@ -58,20 +79,23 @@ function refresh() {
     $('intervalSel').value = String(interval);
   });
 
-  // Tab hint
-  findSellerTab().then((tab) => {
+  // Content-based tab hint (SPA-safe)
+  findSellerTab().then(async (tab) => {
     if (!tab) {
-      $('tabHint').textContent = '⚠ No Seller Central tab open — click "Open Manage Pricing" below.';
+      $('tabHint').textContent = '⚠ No Seller Central tab open — click "Open Seller Central" below.';
       $('tabHint').style.color = '#ff4d6d';
       return;
     }
-    const path = tab.url.replace('https://sellercentral.amazon.co.za', '');
-    if (/\/pricing\//i.test(tab.url)) {
-      $('tabHint').textContent = '✓ On Manage Pricing (' + path + ') — ready to scan.';
+    const probe = await probeTab(tab);
+    if (probe && probe.hasTable) {
+      $('tabHint').textContent = '✓ Pricing table found — ' + probe.rows + ' rows, headers: ' + (probe.headers || '?') + '. Ready to scan!';
       $('tabHint').style.color = '#00e5a0';
-    } else {
-      $('tabHint').textContent = '⚠ Tab is on "' + path + '" — that is NOT the pricing page. Click "Open Manage Pricing" below (or Pricing → Manage Pricing in the menu), then scan.';
+    } else if (probe) {
+      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table on this page (' + probe.title + '). Navigate: Pricing → Manage Pricing (or Inventory → Manage Inventory → Manage Pricing link).';
       $('tabHint').style.color = '#ff9500';
+    } else {
+      $('tabHint').textContent = '⚠ Cannot reach the Seller Central tab — reload it (F5) and try again.';
+      $('tabHint').style.color = '#ff4d6d';
     }
   });
 
