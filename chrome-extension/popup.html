@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amazon BuyBox Pro</title>
+<style>
+  body { width: 300px; background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif; font-size: 12px; margin: 0; padding: 12px; }
+  h1 { font-size: 14px; color: #f59e0b; margin: 0 0 10px; }
+  .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #2d333b; }
+  .row .lbl { color: #8b949e; }
+  .row .val { font-weight: 600; }
+  .green { color: #00e5a0; }
+  .orange { color: #f59e0b; }
+  .red { color: #ff4d6d; }
+  button {
+    width: 100%; padding: 8px; margin-top: 8px; border-radius: 6px; cursor: pointer;
+    background: #1c2333; color: #e6edf3; border: 1px solid #2d333b; font-size: 12px;
+  }
+  button:hover { border-color: #f59e0b; }
+  button.primary { background: #f59e0b; color: #1a1206; font-weight: 700; border-color: #f59e0b; }
+  .hint { color: #8b949e; font-size: 10px; margin-top: 8px; line-height: 1.5; }
+  select { width: 100%; background: #1c2333; color: #e6edf3; border: 1px solid #2d333b; border-radius: 6px; padding: 6px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>🛒 Amazon BuyBox Pro</h1>
+<div id="status">
+  <div class="row"><span class="lbl">Scan state</span><span class="val" id="scanState">—</span></div>
+  <div class="row"><span class="lbl">Products stored</span><span class="val" id="productCount">—</span></div>
+  <div class="row"><span class="lbl">Last scan</span><span class="val" id="lastScan">—</span></div>
+  <div class="row"><span class="lbl">Page</span><span class="val" id="pageInfo">—</span></div>
+</div>
+<button id="scanBtn" class="primary">▶ Start auto-scan (all pages)</button>
+<button id="stopBtn" style="display:none">⏹ Stop scan</button>
+<button id="parseBtn">📄 Scan current page only</button>
+<select id="intervalSel">
+  <option value="0">Periodic scan: off</option>
+  <option value="30">Every 30 min</option>
+  <option value="60">Every 60 min</option>
+  <option value="120">Every 2 hours</option>
+  <option value="360">Every 6 hours</option>
+</select>
+<div class="hint">Open <b>Seller Central → Pricing → Manage Pricing</b> in a tab first. The auto-scan clicks through every page and stores the data. Then open the dashboard and hit <b>Pull now</b>.</div>
+<script src="popup.js"></script>
+</body>
+</html>

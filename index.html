@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon BuyBox Pro — co.za Tracker & Repricer</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #f59e0b;
+    --accent2: #ff4d6d;
+    --accent3: #00e5a0;
+    --accent4: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', -apple-system, sans-serif; font-size: 13px;
+  }
+  .mono { font-family: 'Consolas', 'Courier New', monospace; }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 18px; background: var(--surface);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
+  }
+  .logo { font-size: 16px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px; }
+  .logo span { color: var(--muted); font-weight: 400; font-size: 11px; }
+  .tabs { display: flex; gap: 4px; margin-left: 10px; }
+  .tab {
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    color: var(--muted); border: 1px solid transparent; user-select: none;
+  }
+  .tab:hover { color: var(--text); background: var(--surface2); }
+  .tab.active { color: var(--accent); background: var(--surface2); border-color: var(--accent); font-weight: 600; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .badge {
+    font-size: 10px; padding: 3px 8px; border-radius: 10px; border: 1px solid var(--border);
+    color: var(--muted); background: var(--surface2);
+  }
+  .badge.green { color: var(--accent3); border-color: var(--accent3); }
+  .badge.red { color: var(--accent2); border-color: var(--accent2); }
+  .badge.orange { color: var(--accent); border-color: var(--accent); }
+  .badge.purple { color: var(--accent4); border-color: var(--accent4); }
+  .btn {
+    padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer; font-size: 12px;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn-primary { background: var(--accent); color: #1a1206; border-color: var(--accent); font-weight: 700; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-danger { color: var(--accent2); border-color: var(--accent2); }
+  .btn-sm { padding: 3px 8px; font-size: 11px; }
+  .content { padding: 16px 18px; max-width: 1500px; margin: 0 auto; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; margin-bottom: 14px;
+  }
+  .panel h3 { font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 0.5px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 800; }
+  .stat .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; padding: 7px 6px; color: var(--muted); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); white-space: nowrap;
+  }
+  td { padding: 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: var(--surface2); }
+  .status-win { color: var(--accent3); font-weight: 700; }
+  .status-lose { color: var(--accent2); font-weight: 700; }
+  .status-none { color: var(--muted); }
+  .action-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 4px; cursor: pointer; font-size: 11px; padding: 2px 5px;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  input, select {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 7px 10px; font-size: 12px; outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .hint { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .log {
+    background: #0a0e14; border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px; font-family: 'Consolas', monospace; font-size: 11px;
+    max-height: 220px; overflow-y: auto; line-height: 1.6; white-space: pre-wrap;
+  }
+  .log .info { color: var(--muted); }
+  .log .ok { color: var(--accent3); }
+  .log .warn { color: var(--accent); }
+  .log .err { color: var(--accent2); }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; width: 520px; max-width: 94vw; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h3 { color: var(--accent); margin-bottom: 14px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text); }
+  .checkbox-row input { width: 15px; height: 15px; }
+  .hidden { display: none !important; }
+  .empty { color: var(--muted); text-align: center; padding: 40px 20px; }
+  .empty .big { font-size: 34px; margin-bottom: 10px; }
+  .flash { animation: flash 1.2s ease; }
+  @keyframes flash { 0% { background: rgba(245,158,11,0.25); } 100% { background: transparent; } }
+  .lock-on { color: var(--accent2) !important; border-color: var(--accent2) !important; }
+  .ft-on { color: var(--accent3) !important; border-color: var(--accent3) !important; }
+  .scroll-wrap { max-height: 62vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .toolbar input[type=text] { min-width: 220px; }
+  .price-up { color: var(--accent); }
+  .price-down { color: var(--accent3); }
+  .price-flat { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">🛒 Amazon BuyBox Pro <span>— amazon.co.za · track + repricer</span></div>
+  <div class="tabs">
+    <div class="tab active" data-tab="products" onclick="switchTab('products')">📦 Products</div>
+    <div class="tab" data-tab="repricer" onclick="switchTab('repricer')">⚙️ Repricer</div>
+    <div class="tab" data-tab="export" onclick="switchTab('export')">📤 Export & Push</div>
+    <div class="tab" data-tab="settings" onclick="switchTab('settings')">⚡ Settings</div>
+  </div>
+  <div class="topbar-right">
+    <span class="badge" id="bridgeBadge" title="Extension connection status">🔌 extension: —</span>
+    <span class="badge" id="lastScanBadge">🕐 last scan: —</span>
+    <button class="btn btn-sm" onclick="pullFromExtension()">🔄 Pull now</button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ══════════════════════ PRODUCTS TAB ══════════════════════ -->
+<div id="tab-products">
+  <div class="stats">
+    <div class="stat"><div class="num" id="statTotal" style="color:var(--accent)">0</div><div class="lbl">Products</div></div>
+    <div class="stat"><div class="num" id="statWin" style="color:var(--accent3)">0</div><div class="lbl">Winning BuyBox</div></div>
+    <div class="stat"><div class="num" id="statLose" style="color:var(--accent2)">0</div><div class="lbl">Losing BuyBox</div></div>
+    <div class="stat"><div class="num" id="statNone" style="color:var(--muted)">0</div><div class="lbl">No BuyBox</div></div>
+    <div class="stat"><div class="num" id="statLocked" style="color:var(--accent2)">0</div><div class="lbl">🔒 Locked</div></div>
+    <div class="stat"><div class="num" id="statNoCost" style="color:var(--accent)">0</div><div class="lbl">Missing Cost</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="🔍 Search SKU / ASIN / title..." oninput="renderProducts()">
+      <select id="statusFilter" onchange="renderProducts()">
+        <option value="">All statuses</option>
+        <option value="win">WIN</option>
+        <option value="lose">LOSE</option>
+        <option value="none">No BuyBox</option>
+      </select>
+      <select id="lockFilter" onchange="renderProducts()">
+        <option value="">All locks</option>
+        <option value="locked">🔒 Locked</option>
+        <option value="unlocked">Unlocked</option>
+      </select>
+      <button class="btn btn-sm" onclick="importJsonFile()">📥 Import JSON</button>
+      <button class="btn btn-sm" onclick="exportJson()">📤 Export JSON</button>
+      <button class="btn btn-sm btn-danger" onclick="confirmClear()">🗑 Clear</button>
+      <span class="hint" style="margin-left:auto">Data pulled from the extension's Manage Pricing scan. Edit cost/min/max per product to feed the repricer.</span>
+    </div>
+    <div class="scroll-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th></th><th>SKU</th><th>ASIN</th><th>Title</th>
+            <th style="text-align:right">Your Price</th>
+            <th style="text-align:right">BuyBox</th>
+            <th style="text-align:right">Lowest</th>
+            <th>Status</th>
+            <th style="text-align:right">Min</th>
+            <th style="text-align:right">Max</th>
+            <th>Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="productsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ REPRICER TAB ══════════════════════ -->
+<div id="tab-repicer" class="hidden">
+  <div class="grid3">
+    <div class="panel">
+      <h3>Strategy</h3>
+      <div style="display:grid;gap:10px">
+        <div>
+          <label>Strategy</label>
+          <select id="pricerStrategy" style="width:100%" onchange="buildRepricePreview()">
+            <option value="beat">Beat buybox by amount</option>
+            <option value="match">Match buybox exactly</option>
+            <option value="floor">Floor only (never chase)</option>
+          </select>
+        </div>
+        <div>
+          <label>Beat by (R)</label>
+          <input type="number" id="pricerBeatBy" value="1" min="0" step="0.01" style="width:100%" oninput="buildRepricePreview()">
+        </div>
+        <div>
+          <label>Min profit % (auto min = cost × (1 + pct))</label>
+          <select id="pricerFloor" style="width:100%" onchange="buildRepricePreview()">
+            <option value="3">3%</option>
+            <option value="5">5%</option>
+            <option value="7" selected>7%</option>
+            <option value="10">10%</option>
+            <option value="12">12%</option>
+            <option value="15">15%</option>
+            <option value="20">20%</option>
+          </select>
+        </div>
+        <div class="checkbox-row"><input type="checkbox" id="pricerWinsOnly" onchange="buildRepricePreview()"><span>Only reprice products we're LOSING (skip winners)</span></div>
+        <div class="checkbox-row"><input type="checkbox" id="pricerSkipUnknown" checked onchange="buildRepricePreview()"><span>Skip products with no buybox price</span></div>
+        <div class="checkbox-row"><input type="checkbox" id="pricerAllowBelowFloor" onchange="buildRepricePreview()"><span>Allow below absolute floor (R<span id="absFloorLbl">50</span>)</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Guards</h3>
+      <div style="display:grid;gap:10px">
+        <div class="checkbox-row"><input type="checkbox" id="pricerMinEnabled" checked onchange="buildRepricePreview()"><span>Enforce per-product Min Price</span></div>
+        <div class="checkbox-row"><input type="checkbox" id="pricerMaxEnabled" onchange="buildRepricePreview()"><span>Enforce per-product Max Price</span></div>
+        <div class="hint">Min/Max are set per product in the Products tab (edit modal). Products without a cost price are always skipped — the repricer never prices blind.</div>
+        <div class="hint">🔒 Locked products are capped at their current price: the repricer keeps beating competitors <b>downward</b> but never raises them. Unlock to allow raises.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Output</h3>
+      <div style="display:grid;gap:10px">
+        <button class="btn btn-primary" onclick="generateFlatFile()">📄 Generate Price & Inventory flat file</button>
+        <button class="btn" onclick="copyFlatFile()">📋 Copy to clipboard</button>
+        <div class="hint">Generates a TSV with <b>sku</b> + <b>price</b> columns ready for Seller Central → Inventory → Add Products via Upload → <b>Price &amp; Inventory</b> template.</div>
+        <div class="hint">Amazon.co.za buybox is won on landed price + fulfilment + metrics — beating the buybox price is the right lever, but a win is never guaranteed by price alone.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Preview — <span id="previewCount">0</span> products will update</h3>
+    <div id="repriceSummary" style="margin-bottom:10px"></div>
+    <div class="scroll-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th><th>Title</th>
+            <th style="text-align:right">Your Price</th>
+            <th style="text-align:right">BuyBox</th>
+            <th style="text-align:right">New Price</th>
+            <th style="text-align:right">Change</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody id="repriceBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ EXPORT TAB ══════════════════════ -->
+<div id="tab-export" class="hidden">
+  <div class="grid2">
+    <div class="panel">
+      <h3>📤 Push prices to Amazon (no API needed)</h3>
+      <div style="display:grid;gap:10px;font-size:12px;line-height:1.7">
+        <div>1. Click <b>Generate flat file</b> in the Repricer tab (or below) — it downloads a TSV with your SKUs and new prices.</div>
+        <div>2. Go to <b>Seller Central → Inventory → Add Products via Upload</b>.</div>
+        <div>3. Choose the <b>Price &amp; Inventory</b> template, upload the file, review the report.</div>
+        <div>4. Amazon applies the prices — usually within a few minutes.</div>
+        <div class="hint">⚠ If Amazon rejects the file, open the official <b>Price &amp; Inventory</b> template (download it from the upload page), paste your <b>sku</b> and <b>price</b> columns into it, and re-upload. Some marketplaces require the exact template headers.</div>
+        <button class="btn btn-primary" style="margin-top:6px" onclick="generateFlatFile()">📄 Generate flat file now</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>🤖 Amazon Automate Pricing (built-in repricer)</h3>
+      <div style="display:grid;gap:10px;font-size:12px;line-height:1.7">
+        <div>Amazon's own repricer can do the chasing for you — no uploads needed:</div>
+        <div>1. Seller Central → <b>Pricing → Automate Pricing</b>.</div>
+        <div>2. Create a rule: <b>Match Buy Box Price</b> or <b>Beat Buy Box Price by R X</b>, with a <b>minimum price</b> (your floor) and optional <b>maximum price</b>.</div>
+        <div>3. Assign SKUs to the rule.</div>
+        <div class="hint">This dashboard then becomes your <b>monitoring + alert layer</b>: it watches win/lose, competitor prices, and pings Telegram when you lose the box or a competitor undercuts.</div>
+        <div class="hint">💡 Recommended combo: Automate Pricing handles the fast chasing; this dashboard handles the strategy, floors, locks, and alerts.</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>📜 Recent activity</h3>
+    <div class="log" id="activityLog"><span class="info">— no activity yet —</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ SETTINGS TAB ══════════════════════ -->
+<div id="tab-settings" class="hidden">
+  <div class="grid2">
+    <div class="panel">
+      <h3>⚡ Telegram alerts</h3>
+      <div style="display:grid;gap:10px">
+        <div><label>Bot token</label><input type="text" id="tgToken" placeholder="123456:ABC-DEF..." style="width:100%"></div>
+        <div><label>Chat ID</label><input type="text" id="tgChatId" placeholder="-1001234567890" style="width:100%"></div>
+        <div class="checkbox-row"><input type="checkbox" id="tgEnabled"><span>Enable alerts</span></div>
+        <div class="checkbox-row"><input type="checkbox" id="tgOnLoss"><span>Alert when a product LOSES the buybox</span></div>
+        <div class="checkbox-row"><input type="checkbox" id="tgOnWin"><span>Alert when a product WINS the buybox</span></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="saveTgSettings()">💾 Save</button>
+          <button class="btn" onclick="testTelegram()">📨 Test</button>
+        </div>
+        <div class="hint" id="tgStatus"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>🛡 Pricing guards</h3>
+      <div style="display:grid;gap:10px">
+        <div><label>Absolute price floor (R) — never go below</label><input type="number" id="absFloorInput" value="50" min="0" style="width:100%" onchange="saveAbsFloor()"></div>
+        <div class="hint">The repricer refuses any price below this, even if the buybox is lower. Per-product Min Prices (from cost + profit %) are the real floors; this is the last-resort safety net.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>🔌 Extension</h3>
+      <div style="display:grid;gap:10px;font-size:12px;line-height:1.7">
+        <div id="bridgeStatus">Extension bridge: <b>not detected</b>. Load the extension and open this page in the same Chrome profile.</div>
+        <div class="hint">The extension reads Seller Central → Manage Pricing (your own account data) and stores it in chrome.storage. This dashboard pulls from it automatically every 15s.</div>
+        <div class="hint">Load it at <span class="mono">chrome://extensions</span> → Developer mode → Load unpacked → select the <span class="mono">chrome-extension</span> folder. Enable <b>Allow access to file URLs</b> for this extension.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>💾 Data</h3>
+      <div style="display:grid;gap:10px">
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="exportJson()">📤 Export products JSON</button>
+          <button class="btn" onclick="importJsonFile()">📥 Import products JSON</button>
+        </div>
+        <div class="hint">Products live in <span class="mono">localStorage (bbp_amazon_products_v1)</span>. Export regularly as a backup — clearing browser data wipes it.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ══════════════════════ EDIT MODAL ══════════════════════ -->
+<div class="modal-backdrop" id="editModal">
+  <div class="modal">
+    <h3>✎ Edit Product</h3>
+    <p id="editModalTitle" style="color:var(--accent);margin-bottom:14px;font-size:12px;font-weight:600"></p>
+    <div style="display:grid;gap:12px">
+      <div class="grid2">
+        <div><label>SKU</label><input type="text" id="editSkuInput" style="width:100%"></div>
+        <div><label>ASIN</label><input type="text" id="editAsinInput" style="width:100%"></div>
+      </div>
+      <div><label>Title</label><input type="text" id="editTitleInput" style="width:100%"></div>
+      <div class="grid2">
+        <div><label>Cost price (R) — what you pay</label><input type="number" id="editCostInput" step="0.01" min="0" style="width:100%"></div>
+        <div>
+          <label>Min profit %</label>
+          <select id="editProfitPct" style="width:100%" onchange="updateEditCalc()">
+            <option value="3">3%</option><option value="5">5%</option><option value="7" selected>7%</option>
+            <option value="10">10%</option><option value="12">12%</option><option value="15">15%</option><option value="20">20%</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div><label>Min price (R) — floor</label><input type="number" id="editMinInput" step="1" min="0" style="width:100%" placeholder="Auto from cost + %"></div>
+        <div><label>Max price (R) — ceiling</label><input type="number" id="editMaxInput" step="1" min="0" style="width:100%" placeholder="Leave blank = no cap"></div>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;background:#2a1f0e;border:1px solid #ff9500;border-radius:6px">
+          <input type="checkbox" id="editLockInput" style="width:15px;height:15px">
+          <span style="color:#ff9500;font-weight:600">🔒 Lock price — never raise above current</span>
+        </label>
+        <div class="hint">For specials: the repricer keeps beating competitors downward but never raises this product. Unlock when the special ends.</div>
+      </div>
+      <div id="editCalcPreview" style="font-size:11px;color:var(--muted);background:var(--surface2);padding:8px;border-radius:6px;line-height:1.7"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditModal()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ CLEAR MODAL ══════════════════════ -->
+<div class="modal-backdrop" id="clearModal">
+  <div class="modal">
+    <h3>⚠️ Clear all products?</h3>
+    <p style="font-size:12px;color:var(--muted)">This deletes all <span id="clearCount">0</span> products from local storage. The extension's scan data in chrome.storage is untouched — you can pull it again.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('clearModal').classList.remove('show')">Cancel</button>
+      <button class="btn btn-danger" onclick="clearAll()">Delete All</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   Amazon BuyBox Pro — co.za tracker & repricer
+   Data model per product:
+   { sku, asin, title, yourPrice, buyboxPrice, lowestPrice,
+     status: 'win'|'lose'|'none', costPrice, minPrice, maxPrice,
+     profitPct, priceLock, fastTrack, updatedAt }
+   ════════════════════════════════════════════════════════════ */
+
+var STORAGE_KEY = 'bbp_amazon_products_v1';
+var STRATEGY_KEY = 'bbp_amazon_strategy_v1';
+var state = { products: [] };
+var _editIdx = null;
+var _lastStatusMap = {};   // sku -> status, for win/lose change alerts
+var _lastScanAt = null;
+
+/* ── helpers ─────────────────────────────────────────────── */
+function $(id) { return document.getElementById(id); }
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+function roundPrice(x) { return Math.round((x || 0) * 100) / 100; }
+function fmtR(x) {
+  if (x == null || isNaN(x)) return '—';
+  return 'R' + Number(x).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString('en-ZA', { day: '2-digit', month: '2-digit' });
+}
+function logActivity(msg, cls) {
+  var el = $('activityLog');
+  if (!el) return;
+  var t = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  var line = '<span class="' + (cls || 'info') + '">[' + t + '] ' + escHtml(msg) + '</span>\n';
+  if (el.innerHTML === '<span class="info">— no activity yet —</span>') el.innerHTML = '';
+  el.innerHTML = line + el.innerHTML;
+  if (el.children.length > 200) el.removeChild(el.lastChild);
+}
+function getAbsFloor() {
+  var v = parseFloat(localStorage.getItem('bbp_amazon_abs_floor'));
+  return (!isNaN(v) && v > 0) ? v : 50;
+}
+
+/* ── persistence ─────────────────────────────────────────── */
+function saveProducts() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.products));
+}
+function loadProducts() {
+  try { state.products = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch (e) { state.products = []; }
+  // Normalize legacy/missing fields
+  state.products.forEach(function(p) {
+    if (p.priceLock == null) p.priceLock = null;   // number = lock price, null = unlocked
+    if (p.fastTrack == null) p.fastTrack = false;
+    if (p.profitPct == null) p.profitPct = 7;
+  });
+}
+function upsertProducts(incoming) {
+  // Merge by SKU (fallback ASIN) — keep local cost/min/max/lock edits, take fresh prices/status
+  var byKey = {};
+  state.products.forEach(function(p) {
+    var k = (p.sku || p.asin || '').toUpperCase();
+    if (k) byKey[k] = p;
+  });
+  var added = 0, updated = 0;
+  incoming.forEach(function(n) {
+    var k = (n.sku || n.asin || '').toUpperCase();
+    if (!k) return;
+    var existing = byKey[k];
+    if (existing) {
+      var oldStatus = existing.status;
+      existing.asin = n.asin || existing.asin;
+      existing.title = n.title || existing.title;
+      existing.yourPrice = n.yourPrice != null ? n.yourPrice : existing.yourPrice;
+      existing.buyboxPrice = n.buyboxPrice != null ? n.buyboxPrice : existing.buyboxPrice;
+      existing.lowestPrice = n.lowestPrice != null ? n.lowestPrice : existing.lowestPrice;
+      existing.status = n.status || existing.status;
+      existing.updatedAt = n.updatedAt || new Date().toISOString();
+      if (oldStatus && n.status && oldStatus !== n.status) {
+        _lastStatusMap[k] = { from: oldStatus, to: n.status, title: existing.title };
+      }
+      updated++;
+    } else {
+      var np = {
+        sku: n.sku || '', asin: n.asin || '', title: n.title || '',
+        yourPrice: n.yourPrice != null ? n.yourPrice : null,
+        buyboxPrice: n.buyboxPrice != null ? n.buyboxPrice : null,
+        lowestPrice: n.lowestPrice != null ? n.lowestPrice : null,
+        status: n.status || 'none',
+        costPrice: null, minPrice: null, maxPrice: null,
+        profitPct: 7, priceLock: false, fastTrack: false,
+        updatedAt: n.updatedAt || new Date().toISOString()
+      };
+      state.products.push(np);
+      byKey[k] = np;
+      added++;
+    }
+  });
+  saveProducts();
+  return { added: added, updated: updated };
+}
+
+/* ── tabs ────────────────────────────────────────────────── */
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === name); });
+  ['products','repricer','export','settings'].forEach(function(t) {
+    $('tab-' + t).classList.toggle('hidden', t !== name);
+  });
+  if (name === 'repricer') buildRepricePreview();
+  if (name === 'products') renderProducts();
+}
+
+/* ── products table ──────────────────────────────────────── */
+function renderProducts() {
+  var q = ($('searchInput').value || '').toLowerCase().trim();
+  var sf = $('statusFilter').value;
+  var lf = $('lockFilter').value;
+  var rows = state.products.filter(function(p) {
+    if (sf && p.status !== sf) return false;
+    if (lf === 'locked' && !p.priceLock) return false;
+    if (lf === 'unlocked' && p.priceLock) return false;
+    if (q) {
+      var hay = ((p.sku || '') + ' ' + (p.asin || '') + ' ' + (p.title || '')).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  rows.sort(function(a, b) {
+    var sa = a.status === 'lose' ? 0 : (a.status === 'none' ? 1 : 2);
+    var sb = b.status === 'lose' ? 0 : (b.status === 'none' ? 1 : 2);
+    if (sa !== sb) return sa - sb;
+    return String(a.sku || '').localeCompare(String(b.sku || ''));
+  });
+
+  var total = state.products.length;
+  var win = state.products.filter(function(p) { return p.status === 'win'; }).length;
+  var lose = state.products.filter(function(p) { return p.status === 'lose'; }).length;
+  var none = state.products.filter(function(p) { return p.status === 'none'; }).length;
+  var locked = state.products.filter(function(p) { return p.priceLock != null; }).length;
+  var noCost = state.products.filter(function(p) { return !(p.costPrice > 0); }).length;
+  $('statTotal').textContent = total;
+  $('statWin').textContent = win;
+  $('statLose').textContent = lose;
+  $('statNone').textContent = none;
+  $('statLocked').textContent = locked;
+  $('statNoCost').textContent = noCost;
+
+  var body = $('productsBody');
+  if (rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="12"><div class="empty"><div class="big">📦</div>' +
+      (total === 0 ? 'No products yet. Click <b>🔄 Pull now</b> (extension) or <b>Import JSON</b>.' : 'No products match the filters.') +
+      '</div></td></tr>';
+    return;
+  }
+  var html = '';
+  rows.forEach(function(p, i) {
+    var idx = state.products.indexOf(p);
+    var st = p.status === 'win' ? '<span class="status-win">WIN</span>'
+           : p.status === 'lose' ? '<span class="status-lose">LOSE</span>'
+           : '<span class="status-none">NO BOX</span>';
+    var lockBtn = '<button class="action-btn' + (p.priceLock ? ' lock-on' : '') + '" onclick="togglePriceLock(' + idx + ')" title="' + (p.priceLock ? 'Unlock — allow raises (locked at R' + p.priceLock + ')' : 'Lock at current price — never raise above') + '">🔒</button>';
+    var ftBtn = '<button class="action-btn' + (p.fastTrack ? ' ft-on' : '') + '" onclick="toggleFastTrack(' + idx + ')" title="' + (p.fastTrack ? 'Remove from fast track' : 'Add to fast track (priority alerts)') + '">⚡</button>';
+    var editBtn = '<button class="action-btn" onclick="openEditModal(' + idx + ')" title="Edit cost / min / max / lock">✎</button>';
+    html += '<tr>' +
+      '<td>' + lockBtn + ' ' + ftBtn + '</td>' +
+      '<td class="mono" style="font-size:11px">' + escHtml(p.sku || '—') + '</td>' +
+      '<td class="mono" style="font-size:11px;color:var(--muted)">' + escHtml(p.asin || '—') + '</td>' +
+      '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(p.title) + '">' + escHtml((p.title || '').slice(0, 45)) + '</td>' +
+      '<td style="text-align:right" class="mono">' + fmtR(p.yourPrice) + '</td>' +
+      '<td style="text-align:right" class="mono">' + fmtR(p.buyboxPrice) + '</td>' +
+      '<td style="text-align:right" class="mono">' + fmtR(p.lowestPrice) + '</td>' +
+      '<td>' + st + '</td>' +
+      '<td style="text-align:right" class="mono">' + (p.minPrice ? fmtR(p.minPrice) : '<span style="color:var(--accent)">set</span>') + '</td>' +
+      '<td style="text-align:right" class="mono">' + (p.maxPrice ? fmtR(p.maxPrice) : '—') + '</td>' +
+      '<td style="font-size:10px;color:var(--muted)">' + fmtTime(p.updatedAt) + '</td>' +
+      '<td>' + editBtn + '</td>' +
+      '</tr>';
+  });
+  body.innerHTML = html;
+}
+
+/* ── product actions ─────────────────────────────────────── */
+function togglePriceLock(idx) {
+  var p = state.products[idx];
+  if (!p) return;
+  if (p.priceLock) {
+    p.priceLock = null;
+    logActivity('🔓 UNLOCKED ' + (p.sku || p.asin) + ' — raises allowed again', 'warn');
+  } else {
+    // Lock captures the CURRENT price as the cap — "never above R…"
+    var cap = p.yourPrice > 0 ? p.yourPrice : (p.buyboxPrice > 0 ? p.buyboxPrice : null);
+    if (!cap) { alert('No current price to lock at — pull scan data first.'); return; }
+    p.priceLock = roundPrice(cap);
+    logActivity('🔒 LOCKED ' + (p.sku || p.asin) + ' at R' + p.priceLock + ' — never raise above', 'warn');
+  }
+  saveProducts();
+  renderProducts();
+}
+function toggleFastTrack(idx) {
+  var p = state.products[idx];
+  if (!p) return;
+  p.fastTrack = !p.fastTrack;
+  saveProducts();
+  renderProducts();
+  logActivity((p.fastTrack ? '⚡ Fast-track ON ' : '⚡ Fast-track OFF ') + (p.sku || p.asin), 'info');
+}
+
+/* ── edit modal ──────────────────────────────────────────── */
+function openEditModal(idx) {
+  var p = state.products[idx];
+  if (!p) return;
+  _editIdx = idx;
+  $('editModalTitle').textContent = (p.title || p.sku || '') + ' — ' + (p.asin || '');
+  $('editSkuInput').value = p.sku || '';
+  $('editAsinInput').value = p.asin || '';
+  $('editTitleInput').value = p.title || '';
+  $('editCostInput').value = p.costPrice != null ? p.costPrice : '';
+  $('editProfitPct').value = String(p.profitPct || 7);
+  $('editMinInput').value = p.minPrice != null ? p.minPrice : '';
+  $('editMaxInput').value = p.maxPrice != null ? p.maxPrice : '';
+  $('editLockInput').checked = !!p.priceLock;
+  updateEditCalc();
+  $('editModal').classList.add('show');
+}
+function closeEditModal() {
+  $('editModal').classList.remove('show');
+  _editIdx = null;
+}
+function calcMinViablePrice(cost, pct) {
+  return roundPrice(cost * (1 + pct));
+}
+function updateEditCalc() {
+  var p = state.products[_editIdx];
+  if (!p) return;
+  var cost = parseFloat($('editCostInput').value);
+  var pct = parseFloat($('editProfitPct').value) || 7;
+  var min = $('editMinInput').value.trim();
+  var lines = [];
+  if (cost > 0) {
+    var autoMin = calcMinViablePrice(cost, pct / 100);
+    lines.push('Cost R' + cost.toFixed(2) + ' × ' + pct + '% → auto min <b style="color:var(--accent3)">R' + autoMin.toFixed(2) + '</b>');
+    if (min !== '') {
+      var mv = parseFloat(min);
+      if (!isNaN(mv) && mv > 0) lines.push('Manual min override: <b style="color:var(--accent)">R' + mv.toFixed(2) + '</b>');
+    }
+  } else {
+    lines.push('⚠ No cost price — repricer will <b>skip</b> this product until a cost is set.');
+  }
+  if (p.yourPrice != null && p.buyboxPrice != null) {
+    var diff = p.buyboxPrice - p.yourPrice;
+    lines.push('Buybox R' + p.buyboxPrice.toFixed(2) + ' vs your R' + p.yourPrice.toFixed(2) +
+      ' → ' + (diff > 0 ? '<b style="color:var(--accent3)">winning by R' + diff.toFixed(2) + '</b>' : diff < 0 ? '<b style="color:var(--accent2)">losing by R' + Math.abs(diff).toFixed(2) + '</b>' : 'level'));
+  }
+  if (p.priceLock) lines.push('🔒 Locked at <b style="color:var(--accent2)">R' + p.priceLock.toFixed(2) + '</b> — repricer never raises above this (drops still chase down)');
+  $('editCalcPreview').innerHTML = lines.join('<br>');
+}
+function saveEditModal() {
+  var idx = _editIdx;
+  var p = state.products[idx];
+  if (!p) return;
+  var sku = $('editSkuInput').value.trim();
+  var asin = $('editAsinInput').value.trim().toUpperCase();
+  var title = $('editTitleInput').value.trim();
+  var cost = parseFloat($('editCostInput').value);
+  var min = $('editMinInput').value.trim();
+  var max = $('editMaxInput').value.trim();
+  var pct = parseFloat($('editProfitPct').value) || 7;
+
+  if (sku) p.sku = sku;
+  if (asin) p.asin = asin;
+  if (title) p.title = title;
+  p.profitPct = pct;
+  if (!isNaN(cost) && cost > 0) {
+    p.costPrice = roundPrice(cost);
+    if (min === '') p.minPrice = calcMinViablePrice(cost, pct / 100);
+  }
+  if (p.costPrice > 0 && (!p.minPrice || p.minPrice <= 0)) {
+    p.minPrice = calcMinViablePrice(p.costPrice, pct / 100);
+  }
+  if (min !== '') {
+    var mv = parseFloat(min);
+    if (!isNaN(mv) && mv > 0) p.minPrice = roundPrice(mv);
+  }
+  if (max !== '') {
+    var xv = parseFloat(max);
+    if (!isNaN(xv) && xv > 0) p.maxPrice = roundPrice(xv);
+  } else {
+    p.maxPrice = null;  // empty = no cap
+  }
+  p.priceLock = $('editLockInput').checked
+    ? (p.priceLock || (p.yourPrice > 0 ? roundPrice(p.yourPrice) : null))
+    : null;
+  saveProducts();
+  closeEditModal();
+  renderProducts();
+  logActivity('💾 Saved ' + (p.sku || p.asin), 'ok');
+}
+
+/* ── import / export ─────────────────────────────────────── */
+function exportJson() {
+  var blob = new Blob([JSON.stringify(state.products, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'amazon-buybox-products-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  logActivity('📤 Exported ' + state.products.length + ' products to JSON', 'ok');
+}
+function importJsonFile() {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = function() {
+    var f = input.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      try {
+        var arr = JSON.parse(reader.result);
+        if (!Array.isArray(arr)) throw new Error('not an array');
+        var res = upsertProducts(arr);
+        renderProducts();
+        logActivity('📥 Imported: ' + res.added + ' added, ' + res.updated + ' updated', 'ok');
+      } catch (e) {
+        alert('Invalid JSON file: ' + e.message);
+      }
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+}
+function confirmClear() {
+  $('clearCount').textContent = state.products.length;
+  $('clearModal').classList.add('show');
+}
+function clearAll() {
+  state.products = [];
+  saveProducts();
+  renderProducts();
+  $('clearModal').classList.remove('show');
+  logActivity('🗑 Cleared all products', 'warn');
+}
+
+/* ── strategy engine (mirrors Makro logic) ───────────────── */
+function getStrategySettings() {
+  return {
+    strategy: $('pricerStrategy').value,
+    beatBy: parseFloat($('pricerBeatBy').value) || 0,
+    floorPct: parseFloat($('pricerFloor').value) || 7,
+    winsOnly: $('pricerWinsOnly').checked,
+    skipUnknown: $('pricerSkipUnknown').checked,
+    minEnabled: $('pricerMinEnabled').checked,
+    maxEnabled: $('pricerMaxEnabled').checked,
+    allowBelow: $('pricerAllowBelowFloor').checked
+  };
+}
+function calcNewPrice(myPrice, buyboxPrice, s) {
+  // Returns { price, note } or null if no change / skip
+  if (!buyboxPrice || buyboxPrice <= 0) return null;
+  var target = null;
+  if (s.strategy === 'beat') target = buyboxPrice - s.beatBy;
+  else if (s.strategy === 'match') target = buyboxPrice;
+  else if (s.strategy === 'floor') target = null;  // floor-only handled below
+  if (s.strategy === 'floor') {
+    // Only raise if we're below our own floor — never chase
+    return null;
+  }
+  if (target <= 0) return null;
+  target = roundPrice(target);
+  if (myPrice != null && myPrice > 0 && Math.abs(target - myPrice) < 0.005) return null;  // no change
+  return { price: target, note: 'buybox R' + buyboxPrice.toFixed(2) + (s.beatBy > 0 ? ' − R' + s.beatBy : '') };
+}
+function applyGuards(p, target, s) {
+  var notes = [];
+  var absFloor = getAbsFloor();
+  // Cost required
+  if (!(p.costPrice > 0)) return { price: null, note: '⛔ no cost' };
+  // Per-product min (auto from cost+% if not set)
+  var min = p.minPrice;
+  if (!min || min <= 0) min = calcMinViablePrice(p.costPrice, (p.profitPct || 7) / 100);
+  if (s.minEnabled && target < min) { target = roundPrice(min); notes.push('min floor'); }
+  if (s.maxEnabled && p.maxPrice > 0 && target > p.maxPrice) { target = roundPrice(p.maxPrice); notes.push('max cap'); }
+  // Absolute floor
+  if (!s.allowBelow && target < absFloor) { target = roundPrice(absFloor); notes.push('R' + absFloor + ' floor'); }
+  // 🔒 Lock: never above the lock price (captured when locked). Drops chase down freely.
+  if (p.priceLock && target > p.priceLock) { target = roundPrice(p.priceLock); notes.push('🔒 locked at R' + p.priceLock); }
+  return { price: target, note: notes.join(', ') };
+}
+
+/* ── reprice preview ─────────────────────────────────────── */
+function buildRepricePreview() {
+  var s = getStrategySettings();
+  var rows = [];
+  state.products.forEach(function(p) {
+    if (!p.sku) return;
+    if (s.skipUnknown && (!p.buyboxPrice || p.buyboxPrice <= 0)) return;
+    if (s.winsOnly && p.status === 'win') return;
+    if (!(p.costPrice > 0) && !s.allowBelow) return;
+    var res = calcNewPrice(p.yourPrice, p.buyboxPrice, s);
+    if (!res) return;
+    var guarded = applyGuards(p, res.price, s);
+    if (!guarded.price) return;
+    var change = guarded.price - (p.yourPrice || 0);
+    if (Math.abs(change) < 0.005) return;
+    rows.push({
+      sku: p.sku, asin: p.asin, title: p.title,
+      yourPrice: p.yourPrice, buyboxPrice: p.buyboxPrice,
+      newPrice: guarded.price, change: change,
+      note: guarded.note || res.note, locked: !!p.priceLock
+    });
+  });
+  rows.sort(function(a, b) { return a.change - b.change; });
+
+  $('previewCount').textContent = rows.length;
+  var totalChange = rows.reduce(function(s2, r) { return s2 + r.change; }, 0);
+  var down = rows.filter(function(r) { return r.change < 0; }).length;
+  var up = rows.filter(function(r) { return r.change > 0; }).length;
+  $('repriceSummary').innerHTML =
+    '<span style="color:var(--accent3)">▼ ' + down + ' drops</span> &nbsp;·&nbsp; ' +
+    '<span style="color:var(--accent)">▲ ' + up + ' raises</span> &nbsp;·&nbsp; ' +
+    '<span style="color:var(--muted)">net R' + totalChange.toFixed(2) + '</span>';
+
+  var body = $('repriceBody');
+  if (rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="7"><div class="empty">No products match the current strategy. Check filters, cost prices, and buybox data.</div></td></tr>';
+    return;
+  }
+  var html = '';
+  rows.slice(0, 200).forEach(function(r) {
+    var cls = r.change < 0 ? 'price-down' : (r.change > 0 ? 'price-up' : 'price-flat');
+    var sign = r.change > 0 ? '+' : '';
+    html += '<tr>' +
+      '<td class="mono" style="font-size:11px">' + escHtml(r.sku) + '</td>' +
+      '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(r.title) + '">' + escHtml((r.title || '').slice(0, 35)) + (r.locked ? ' <span style="color:var(--accent2)">🔒</span>' : '') + '</td>' +
+      '<td style="text-align:right" class="mono">' + fmtR(r.yourPrice) + '</td>' +
+      '<td style="text-align:right" class="mono">' + fmtR(r.buyboxPrice) + '</td>' +
+      '<td style="text-align:right" class="mono" style="font-weight:700;color:var(--accent)">' + fmtR(r.newPrice) + '</td>' +
+      '<td style="text-align:right" class="mono ' + cls + '">' + sign + 'R' + r.change.toFixed(2) + '</td>' +
+      '<td style="font-size:10px;color:var(--muted)">' + escHtml(r.note) + '</td>' +
+      '</tr>';
+  });
+  body.innerHTML = html;
+  if (rows.length > 200) {
+    body.innerHTML += '<tr><td colspan="7" style="color:var(--muted);padding:8px">...and ' + (rows.length - 200) + ' more (file includes all)</td></tr>';
+  }
+}
+
+/* ── flat file export (Price & Inventory TSV) ────────────── */
+function getFlatFileRows() {
+  var s = getStrategySettings();
+  var out = [];
+  state.products.forEach(function(p) {
+    if (!p.sku) return;
+    if (s.skipUnknown && (!p.buyboxPrice || p.buyboxPrice <= 0)) return;
+    if (s.winsOnly && p.status === 'win') return;
+    if (!(p.costPrice > 0) && !s.allowBelow) return;
+    var res = calcNewPrice(p.yourPrice, p.buyboxPrice, s);
+    if (!res) return;
+    var guarded = applyGuards(p, res.price, s);
+    if (!guarded.price) return;
+    var change = guarded.price - (p.yourPrice || 0);
+    if (Math.abs(change) < 0.005) return;
+    out.push({ sku: p.sku, price: guarded.price });
+  });
+  return out;
+}
+function flatFileHeaders() {
+  // Standard Amazon "Price & Inventory" template header set (price-only update)
+  return ['sku','product-id','product-id-type','price','quantity','leadtime-to-ship','launch-date',
+    'is-giftwrap-available','is-gift-message-available','merchant-shipping-group-name','fulfillment-channel',
+    'item-condition','will-ship-internationally','expedited-shipping','standard-plus-shipping',
+    'item-note','item-note-2','item-note-3','add-delete','pending-quantity','fulfillment-latency'];
+}
+function buildFlatFile() {
+  var rows = getFlatFileRows();
+  var headers = flatFileHeaders();
+  var lines = [headers.join('\t')];
+  rows.forEach(function(r) {
+    var cells = headers.map(function(h) {
+      if (h === 'sku') return r.sku;
+      if (h === 'price') return r.price.toFixed(2);
+      return '';
+    });
+    lines.push(cells.join('\t'));
+  });
+  return { text: lines.join('\n'), count: rows.length };
+}
+function generateFlatFile() {
+  var f = buildFlatFile();
+  if (f.count === 0) {
+    alert('No products to update with the current strategy. Check the Repricer preview.');
+    return;
+  }
+  var blob = new Blob([f.text], { type: 'text/tab-separated-values' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'amazon-price-update-' + new Date().toISOString().slice(0, 10) + '.tsv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  logActivity('📄 Generated flat file with ' + f.count + ' price updates', 'ok');
+}
+function copyFlatFile() {
+  var f = buildFlatFile();
+  if (f.count === 0) { alert('No products to update.'); return; }
+  navigator.clipboard.writeText(f.text).then(function() {
+    logActivity('📋 Copied ' + f.count + ' price rows to clipboard', 'ok');
+  });
+}
+
+/* ── Telegram ────────────────────────────────────────────── */
+function saveTgSettings() {
+  localStorage.setItem('bbp_amazon_tg_token', $('tgToken').value.trim());
+  localStorage.setItem('bbp_amazon_tg_chat', $('tgChatId').value.trim());
+  localStorage.setItem('bbp_amazon_tg_enabled', $('tgEnabled').checked ? '1' : '0');
+  localStorage.setItem('bbp_amazon_tg_onloss', $('tgOnLoss').checked ? '1' : '0');
+  localStorage.setItem('bbp_amazon_tg_onwin', $('tgOnWin').checked ? '1' : '0');
+  $('tgStatus').textContent = '💾 Saved.';
+  logActivity('⚡ Telegram settings saved', 'ok');
+}
+function loadTgSettings() {
+  $('tgToken').value = localStorage.getItem('bbp_amazon_tg_token') || '';
+  $('tgChatId').value = localStorage.getItem('bbp_amazon_tg_chat') || '';
+  $('tgEnabled').checked = localStorage.getItem('bbp_amazon_tg_enabled') === '1';
+  $('tgOnLoss').checked = localStorage.getItem('bbp_amazon_tg_onloss') !== '0';
+  $('tgOnWin').checked = localStorage.getItem('bbp_amazon_tg_onwin') === '1';
+}
+function sendTelegram(text) {
+  var token = localStorage.getItem('bbp_amazon_tg_token');
+  var chat = localStorage.getItem('bbp_amazon_tg_chat');
+  if (!token || !chat) return Promise.reject(new Error('Telegram not configured'));
+  return fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chat, text: text, parse_mode: 'HTML' })
+  }).then(function(r) { return r.json(); });
+}
+function testTelegram() {
+  saveTgSettings();
+  sendTelegram('✅ <b>Amazon BuyBox Pro</b> — Telegram alerts working.\nWatching ' + state.products.length + ' products on amazon.co.za.')
+    .then(function(j) {
+      $('tgStatus').textContent = j.ok ? '✅ Sent!' : '❌ Telegram error: ' + JSON.stringify(j);
+    })
+    .catch(function(e) { $('tgStatus').textContent = '❌ ' + e.message; });
+}
+function checkStatusChanges() {
+  if (localStorage.getItem('bbp_amazon_tg_enabled') !== '1') return;
+  var onLoss = localStorage.getItem('bbp_amazon_tg_onloss') !== '0';
+  var onWin = localStorage.getItem('bbp_amazon_tg_onwin') === '1';
+  var alerts = [];
+  Object.keys(_lastStatusMap).forEach(function(k) {
+    var c = _lastStatusMap[k];
+    if (c.to === 'lose' && onLoss) alerts.push('🔴 <b>LOST buybox</b>: ' + escHtml(c.title || k) + ' (was ' + c.from + ')');
+    if (c.to === 'win' && onWin) alerts.push('🟢 <b>WON buybox</b>: ' + escHtml(c.title || k) + ' (was ' + c.from + ')');
+  });
+  _lastStatusMap = {};
+  if (alerts.length) {
+    sendTelegram('📊 <b>Amazon BuyBox Pro</b> — ' + alerts.length + ' change' + (alerts.length > 1 ? 's' : '') + ':\n' + alerts.slice(0, 10).join('\n'))
+      .catch(function() {});
+  }
+}
+
+/* ── extension bridge ────────────────────────────────────── */
+function getBridge() {
+  return window.__bbpBridge || null;
+}
+function updateBridgeBadge() {
+  var b = getBridge();
+  var badge = $('bridgeBadge');
+  if (b) {
+    badge.textContent = '🔌 extension: connected';
+    badge.className = 'badge green';
+    $('bridgeStatus').innerHTML = 'Extension bridge: <b style="color:var(--accent3)">connected</b>. Data syncs automatically every 15s.';
+  } else {
+    badge.textContent = '🔌 extension: —';
+    badge.className = 'badge';
+    $('bridgeStatus').innerHTML = 'Extension bridge: <b>not detected</b>. Load the extension and open this page in the same Chrome profile.';
+  }
+}
+function pullFromExtension() {
+  var b = getBridge();
+  if (!b) {
+    logActivity('⚠ Extension bridge not detected — load the extension first', 'warn');
+    return Promise.resolve();
+  }
+  return b.getProducts().then(function(data) {
+    if (!data || !data.products) return;
+    var res = upsertProducts(data.products);
+    _lastScanAt = data.lastScan || null;
+    $('lastScanBadge').textContent = '🕐 last scan: ' + (data.lastScan ? fmtTime(data.lastScan) : '—');
+    logActivity('🔄 Pulled from extension: ' + res.added + ' new, ' + res.updated + ' updated' +
+      (data.stats ? ' (' + data.stats.scanned + ' scanned)' : ''), 'ok');
+    renderProducts();
+    checkStatusChanges();
+  }).catch(function(e) {
+    logActivity('⚠ Pull failed: ' + e.message, 'warn');
+  });
+}
+function startAutoPull() {
+  updateBridgeBadge();
+  if (getBridge()) pullFromExtension();
+  setInterval(function() {
+    updateBridgeBadge();
+    if (getBridge()) pullFromExtension();
+  }, 15000);
+}
+
+/* ── init ────────────────────────────────────────────────── */
+function init() {
+  loadProducts();
+  loadTgSettings();
+  $('absFloorInput').value = getAbsFloor();
+  $('absFloorLbl').textContent = getAbsFloor();
+  renderProducts();
+  startAutoPull();
+  // Rebuild preview when strategy inputs change
+  ['pricerStrategy','pricerBeatBy','pricerFloor','pricerWinsOnly','pricerSkipUnknown',
+   'pricerMinEnabled','pricerMaxEnabled','pricerAllowBelowFloor'].forEach(function(id) {
+    var el = $(id);
+    if (el) {
+      el.addEventListener('change', function() { if (!$('tab-repicer').classList.contains('hidden')) buildRepricePreview(); });
+      el.addEventListener('input', function() { if (!$('tab-repicer').classList.contains('hidden')) buildRepricePreview(); });
+    }
+  });
+  logActivity('🚀 Amazon BuyBox Pro loaded — ' + state.products.length + ' products in local storage', 'info');
+}
+function saveAbsFloor() {
+  var v = parseFloat($('absFloorInput').value);
+  if (!isNaN(v) && v > 0) {
+    localStorage.setItem('bbp_amazon_abs_floor', String(v));
+    $('absFloorLbl').textContent = v;
+    logActivity('🛡 Absolute floor set to R' + v, 'ok');
+  }
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
