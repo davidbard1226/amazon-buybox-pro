@@ -2,6 +2,7 @@
 'use strict';
 
 const STORE_KEY = 'bbp_amazon_scan';
+const DIAG_KEY = 'bbp_amazon_diag';
 
 function $(id) { return document.getElementById(id); }
 
@@ -10,6 +11,26 @@ function fmtTime(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+}
+
+function showDiag() {
+  chrome.storage.local.get(DIAG_KEY, (res) => {
+    const arr = (res[DIAG_KEY] || []).slice(-8).reverse();
+    const el = $('diag');
+    if (arr.length === 0) {
+      el.textContent = '— no diagnostics yet —';
+      return;
+    }
+    el.innerHTML = arr.map((d) => {
+      const t = new Date(d.t).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return '<div>[' + t + '] ' + d.msg.replace(/</g, '&lt;') + '</div>';
+    }).join('');
+  });
+}
+
+async function findSellerTab() {
+  const tabs = await chrome.tabs.query({ url: 'https://sellercentral.amazon.co.za/*' });
+  return tabs.length > 0 ? tabs[0] : null;
 }
 
 function refresh() {
@@ -36,6 +57,16 @@ function refresh() {
 
     $('intervalSel').value = String(interval);
   });
+
+  // Tab hint
+  findSellerTab().then((tab) => {
+    $('tabHint').textContent = tab
+      ? '✓ Seller Central tab found: ' + tab.url.replace('https://sellercentral.amazon.co.za', '')
+      : '⚠ No Seller Central tab open — click "Open Manage Pricing" below.';
+    $('tabHint').style.color = tab ? '#00e5a0' : '#ff4d6d';
+  });
+
+  showDiag();
 }
 
 $('scanBtn').addEventListener('click', () => {
@@ -50,21 +81,40 @@ $('stopBtn').addEventListener('click', () => {
   });
 });
 
+$('openPricingBtn').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://sellercentral.amazon.co.za/pricing/managepricing' });
+});
+
 $('parseBtn').addEventListener('click', async () => {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const tab = tabs[0];
-  if (!tab || !tab.id) return;
+  if (!tab || !tab.id) {
+    $('scanState').textContent = '✗ no active tab';
+    $('scanState').className = 'val red';
+    return;
+  }
+  // Try the content script first; if not injected (page opened before the
+  // extension loaded), inject it on the fly.
+  let res = null;
   try {
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'BBP_PARSE_PAGE' });
-    if (res && res.ok) {
-      $('scanState').textContent = '✓ parsed ' + res.scanned + ' rows';
-      $('scanState').className = 'val green';
-    } else {
-      $('scanState').textContent = '✗ no pricing table on this page';
-      $('scanState').className = 'val red';
-    }
+    res = await chrome.tabs.sendMessage(tab.id, { type: 'BBP_PARSE_PAGE' });
   } catch (e) {
-    $('scanState').textContent = '✗ open Manage Pricing first';
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content-seller.js'] });
+      await new Promise((r) => setTimeout(r, 1200));
+      res = await chrome.tabs.sendMessage(tab.id, { type: 'BBP_PARSE_PAGE' });
+    } catch (e2) {
+      $('scanState').textContent = '✗ cannot reach this page (not sellercentral?)';
+      $('scanState').className = 'val red';
+      setTimeout(refresh, 800);
+      return;
+    }
+  }
+  if (res && res.ok) {
+    $('scanState').textContent = '✓ parsed ' + res.scanned + ' rows';
+    $('scanState').className = 'val green';
+  } else {
+    $('scanState').textContent = '✗ no pricing table on this page';
     $('scanState').className = 'val red';
   }
   setTimeout(refresh, 800);

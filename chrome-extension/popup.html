@@ -33,6 +33,7 @@
 <button id="scanBtn" class="primary">▶ Start auto-scan (all pages)</button>
 <button id="stopBtn" style="display:none">⏹ Stop scan</button>
 <button id="parseBtn">📄 Scan current page only</button>
+<button id="openPricingBtn">🌐 Open Manage Pricing</button>
 <select id="intervalSel">
   <option value="0">Periodic scan: off</option>
   <option value="30">Every 30 min</option>
@@ -40,7 +41,9 @@
   <option value="120">Every 2 hours</option>
   <option value="360">Every 6 hours</option>
 </select>
-<div class="hint">Open <b>Seller Central → Pricing → Manage Pricing</b> in a tab first. The auto-scan clicks through every page and stores the data. Then open the dashboard and hit <b>Pull now</b>.</div>
+<div class="hint" id="tabHint"></div>
+<div class="hint" style="margin-top:6px"><b>Diagnostics</b> (what the parser sees):</div>
+<div id="diag" style="background:#0a0e14;border:1px solid #2d333b;border-radius:6px;padding:6px;margin-top:4px;font-size:10px;color:#8b949e;max-height:120px;overflow-y:auto;line-height:1.5"></div>
 <script src="popup.js"></script>
 </body>
 </html>
