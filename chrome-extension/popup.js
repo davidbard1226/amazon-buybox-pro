@@ -91,7 +91,9 @@ $('stopBtn').addEventListener('click', () => {
 });
 
 $('openPricingBtn').addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://sellercentral.amazon.co.za/pricing/managepricing' });
+  // amazon.co.za doesn't expose /pricing/managepricing directly — open the
+  // Seller Central home; the user clicks Pricing → Manage Pricing in the menu.
+  chrome.tabs.create({ url: 'https://sellercentral.amazon.co.za/amazonsell/business' });
 });
 
 $('parseBtn').addEventListener('click', async () => {

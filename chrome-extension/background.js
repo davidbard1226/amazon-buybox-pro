@@ -6,7 +6,7 @@
 
 'use strict';
 
-const SELLER_URLS = ['https://sellercentral.amazon.co.za/pricing/managepricing'];
+const SELLER_URLS = ['https://sellercentral.amazon.co.za/amazonsell/business'];
 const MAX_PAGES = 40;          // 3000 SKUs @ 100/page = 30 pages; headroom for 4000
 const PAGE_DELAY_MS = 3000;    // let the SPA render between pages
 
