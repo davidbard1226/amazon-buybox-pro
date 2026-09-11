@@ -60,10 +60,19 @@ function refresh() {
 
   // Tab hint
   findSellerTab().then((tab) => {
-    $('tabHint').textContent = tab
-      ? '✓ Seller Central tab found: ' + tab.url.replace('https://sellercentral.amazon.co.za', '')
-      : '⚠ No Seller Central tab open — click "Open Manage Pricing" below.';
-    $('tabHint').style.color = tab ? '#00e5a0' : '#ff4d6d';
+    if (!tab) {
+      $('tabHint').textContent = '⚠ No Seller Central tab open — click "Open Manage Pricing" below.';
+      $('tabHint').style.color = '#ff4d6d';
+      return;
+    }
+    const path = tab.url.replace('https://sellercentral.amazon.co.za', '');
+    if (/\/pricing\//i.test(tab.url)) {
+      $('tabHint').textContent = '✓ On Manage Pricing (' + path + ') — ready to scan.';
+      $('tabHint').style.color = '#00e5a0';
+    } else {
+      $('tabHint').textContent = '⚠ Tab is on "' + path + '" — that is NOT the pricing page. Click "Open Manage Pricing" below (or Pricing → Manage Pricing in the menu), then scan.';
+      $('tabHint').style.color = '#ff9500';
+    }
   });
 
   showDiag();
