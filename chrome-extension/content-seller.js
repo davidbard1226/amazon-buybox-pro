@@ -89,6 +89,22 @@
         rows: t.querySelectorAll('tbody tr').length
       };
     });
+    // Div-based grids — the newer Seller Central UI has NO <table> elements
+    var grids = Array.prototype.slice.call(document.querySelectorAll('[role="grid"], [role="table"], [role="rowgroup"]'));
+    var gridInfo = grids.slice(0, 5).map(function (g) {
+      return {
+        role: g.getAttribute('role'),
+        cls: String(g.className || '').slice(0, 80),
+        rows: g.querySelectorAll('[role="row"]').length,
+        cells: g.querySelectorAll('[role="gridcell"], [role="cell"]').length
+      };
+    });
+    // Class-name hints for div-based product rows
+    var clsHits = {};
+    ['sku', 'asin', 'price', 'product', 'buybox', 'buy-box', 'offer'].forEach(function (kw) {
+      var els = document.querySelectorAll('[class*="' + kw + '"]');
+      if (els.length) clsHits[kw] = els.length;
+    });
     var bodyText = norm(document.body ? document.body.textContent : '');
     var keywords = ['manage pricing', 'buy box', 'your price', 'lowest price', 'sku', 'asin', 'pricing', 'inventory'];
     var found = keywords.filter(function (kw) { return bodyText.indexOf(kw) !== -1; });
@@ -96,8 +112,11 @@
       title: document.title,
       url: location.href,
       tables: tinfo,
+      grids: gridInfo,
+      clsHits: clsHits,
       keywords: found,
-      bodyLen: bodyText.length
+      bodyLen: bodyText.length,
+      bodySample: bodyText.slice(0, 400)
     };
   }
 

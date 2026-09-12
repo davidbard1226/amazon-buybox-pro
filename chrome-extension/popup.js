@@ -28,6 +28,24 @@ function showDiag() {
   });
 }
 
+// Write the PROBE diagnostics line from the probe response itself — avoids the
+// race where the content script's async storage write lands after showDiag reads.
+function writeProbeDiag(probe) {
+  const d = probe.dump || {};
+  const msg = 'PROBE: title="' + (d.title || probe.title) + '" url=' + probe.url +
+    ' tables=' + (d.tables ? d.tables.length : 0) +
+    ' grids=' + (d.grids ? d.grids.length : 0) +
+    ' clsHits={' + Object.keys(d.clsHits || {}).map((k) => k + ':' + d.clsHits[k]).join(',') + '}' +
+    ' keywords=[' + ((d.keywords || []).join(',')) + ']' +
+    (d.tables && d.tables.length ? ' firstTableHeaders="' + d.tables[0].headers + '"' : '') +
+    ' bodySample="' + (d.bodySample || '') + '"';
+  chrome.storage.local.get(DIAG_KEY, (res) => {
+    const arr = (res[DIAG_KEY] || []).slice(-50);
+    arr.push({ t: new Date().toISOString(), msg: msg, url: probe.url });
+    chrome.storage.local.set({ [DIAG_KEY]: arr }, () => showDiag());
+  });
+}
+
 async function findSellerTab() {
   // Prefer the ACTIVE tab if it's Seller Central, else the first match
   const active = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -92,14 +110,16 @@ function refresh() {
       $('tabHint').style.color = '#00e5a0';
     } else if (probe) {
       const d = probe.dump || {};
-      const tbl = (d.tables && d.tables.length) ? (' tables: ' + d.tables.map((t) => '[' + t.headers + ']').join(' ')) : ' no tables on page';
+      let tbl = ' no tables on page';
+      if (d.tables && d.tables.length) tbl = ' tables: ' + d.tables.map((t) => '[' + t.headers + ']').join(' ');
+      else if (d.grids && d.grids.length) tbl = ' grid(s): ' + d.grids.map((g) => '[' + g.role + ' rows=' + g.rows + ' cells=' + g.cells + ']').join(' ');
       $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ').' + tbl + ' Navigate: Pricing → Manage Pricing.';
       $('tabHint').style.color = '#ff9500';
     } else {
       $('tabHint').textContent = '⚠ Cannot reach the Seller Central tab — reload it (F5) and try again.';
       $('tabHint').style.color = '#ff4d6d';
     }
-    showDiag(); // re-read diagnostics after the probe wrote its entry
+    writeProbeDiag(probe); // writes the PROBE line + re-reads diagnostics
   });
 
   showDiag();
@@ -166,6 +186,22 @@ $('intervalSel').addEventListener('change', () => {
   } else {
     chrome.alarms.clear('bbp_amazon_periodic_scan');
   }
+});
+
+$('copyDiagBtn').addEventListener('click', () => {
+  chrome.storage.local.get(DIAG_KEY, (res) => {
+    const arr = (res[DIAG_KEY] || []).slice(-50);
+    const text = arr.map((d) => '[' + d.t + '] ' + d.msg).join('\n');
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* ignore */ }
+    document.body.removeChild(ta);
+    $('copyDiagBtn').textContent = ok ? '✓ copied' : '✗ copy failed';
+    setTimeout(() => { $('copyDiagBtn').textContent = '📋 Copy diagnostics'; }, 1500);
+  });
 });
 
 refresh();

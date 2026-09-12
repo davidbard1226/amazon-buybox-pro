@@ -340,6 +340,13 @@
         <div id="bridgeStatus">Extension bridge: <b>not detected</b>. Load the extension and open this page in the same Chrome profile.</div>
         <div class="hint">The extension reads Seller Central → Manage Pricing (your own account data) and stores it in chrome.storage. This dashboard pulls from it automatically every 15s.</div>
         <div class="hint">Load it at <span class="mono">chrome://extensions</span> → Developer mode → Load unpacked → select the <span class="mono">chrome-extension</span> folder. Enable <b>Allow access to file URLs</b> for this extension.</div>
+        <div style="margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <b>Diagnostics</b>
+            <button class="btn" style="padding:2px 8px;font-size:11px" onclick="copyDiag()">📋 Copy</button>
+          </div>
+          <pre id="diagLog" style="background:#0a0e14;border:1px solid #2d333b;border-radius:6px;padding:6px;font-size:10px;color:#8b949e;max-height:160px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:4px 0 0">— no diagnostics yet —</pre>
+        </div>
       </div>
     </div>
     <div class="panel">
@@ -1012,12 +1019,30 @@ function pullFromExtension() {
     logActivity('⚠ Pull failed: ' + e.message, 'warn');
   });
 }
+function loadDiag() {
+  var b = getBridge();
+  if (!b || !b.getDiag) return;
+  b.getDiag().then(function(arr) {
+    var el = $('diagLog');
+    if (!arr || !arr.length) { el.textContent = '— no diagnostics yet —'; return; }
+    el.textContent = arr.map(function(d) { return '[' + d.t + '] ' + d.msg; }).join('\n');
+  }).catch(function() {});
+}
+function copyDiag() {
+  var el = $('diagLog');
+  var ta = document.createElement('textarea');
+  ta.value = el.textContent;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { /* ignore */ }
+  document.body.removeChild(ta);
+}
 function startAutoPull() {
   updateBridgeBadge();
-  if (getBridge()) pullFromExtension();
+  if (getBridge()) { pullFromExtension(); loadDiag(); }
   setInterval(function() {
     updateBridgeBadge();
-    if (getBridge()) pullFromExtension();
+    if (getBridge()) { pullFromExtension(); loadDiag(); }
   }, 15000);
 }
 

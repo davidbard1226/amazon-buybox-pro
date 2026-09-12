@@ -60,9 +60,21 @@
     });
   }
 
+  function getDiag() {
+    return new Promise(function (resolve, reject) {
+      try {
+        chrome.storage.local.get('bbp_amazon_diag', function (res) {
+          if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+          resolve((res.bbp_amazon_diag || []).slice(-50));
+        });
+      } catch (e) { reject(e); }
+    });
+  }
+
   window.__bbpBridge = {
     getProducts: getProducts,
     getScanState: getScanState,
+    getDiag: getDiag,
     startScan: startScan,
     stopScan: stopScan
   };
