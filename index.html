@@ -210,6 +210,7 @@ if (location.protocol === 'chrome-extension:') {
   <div class="topbar-right">
     <span class="badge" id="bridgeBadge" title="Extension connection status">🔌 extension: —</span>
     <span class="badge" id="lastScanBadge">🕐 last scan: —</span>
+    <button class="btn btn-sm" onclick="startScanFromDashboard()">▶ Start scan</button>
     <button class="btn btn-sm" onclick="pullFromExtension()">🔄 Pull now</button>
   </div>
 </div>
@@ -1086,6 +1087,26 @@ function pullFromExtension() {
     checkStatusChanges();
   }).catch(function(e) {
     logActivity('⚠ Pull failed: ' + e.message, 'warn');
+  });
+}
+function startScanFromDashboard() {
+  var b = getBridge();
+  if (!b || !b.startScan) {
+    logActivity('⚠ Extension bridge not detected — open this page via the extension icon', 'warn');
+    return;
+  }
+  b.startScan().then(function(res) {
+    logActivity('▶ Scan started' + (res && res.reason ? ' (' + res.reason + ')' : ''), 'ok');
+    // Pull whatever is already stored, then keep polling until the scan finishes
+    pullFromExtension();
+    var tries = 0;
+    var timer = setInterval(function() {
+      tries++;
+      pullFromExtension();
+      if (tries >= 40) clearInterval(timer); // stop after ~2 min
+    }, 3000);
+  }).catch(function(e) {
+    logActivity('⚠ Scan start failed: ' + e.message, 'warn');
   });
 }
 function loadDiag() {

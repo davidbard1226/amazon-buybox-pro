@@ -140,3 +140,9 @@ chrome.runtime.onInstalled.addListener(() => {
     }
   });
 });
+
+// Clicking the extension icon opens the dashboard directly — no popup,
+// no file:// page, no GitHub. This is the ONLY entry point.
+chrome.action.onClicked.addListener(() => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
+});
