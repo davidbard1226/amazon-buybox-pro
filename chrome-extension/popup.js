@@ -165,6 +165,12 @@ $('openPricingBtn').addEventListener('click', () => {
   chrome.tabs.create({ url: 'https://sellercentral.amazon.co.za/myinventory/inventory?fulfilledBy=all&page=1&pageSize=100&sort=date_created_desc&status=all' });
 });
 
+$('openDashboardBtn').addEventListener('click', () => {
+  // Open the dashboard as an extension page — it reads chrome.storage
+  // directly, so no file-URL access or GitHub Pages is needed.
+  chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
+});
+
 $('parseBtn').addEventListener('click', async () => {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const tab = tabs[0];

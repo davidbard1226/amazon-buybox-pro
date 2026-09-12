@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Amazon BuyBox Pro (co.za)",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Reads your Seller Central Manage Pricing data (buybox win/lose, your price, buybox price, lowest price) and feeds the Amazon BuyBox Pro dashboard. No API needed.",
   "permissions": ["storage", "scripting", "tabs", "alarms"],
   "host_permissions": [
