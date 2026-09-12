@@ -361,95 +361,163 @@
     });
   }
 
+  // Collect every product currently rendered in the DOM into byKey (dedupe by SKU/ASIN).
+  function collectVisibleProducts(byKey, skipInfo) {
+    var all = Array.prototype.slice.call(document.querySelectorAll('*'));
+    var skuLabels = all.filter(function (el) {
+      return el.children.length === 0 && norm(el.textContent) === 'sku';
+    });
+    skuLabels.forEach(function (label) {
+      // Walk up from the SKU label to the row container
+      var row = label;
+      var guard = 0;
+      while (row && row.parentElement && guard < 12) {
+        row = row.parentElement;
+        guard++;
+        var t = norm(row.textContent);
+        if (t.indexOf('asin') !== -1 && t.indexOf('featured offer') !== -1 && t.indexOf('lowest price') !== -1) break;
+      }
+      if (!row || guard >= 12) { if (skipInfo) { skipInfo.skipped++; if (skipInfo.reasons.length < 5) skipInfo.reasons.push('no-row'); } return; }
+      var sku = labelValue(row, 'sku');
+      var asin = labelValue(row, 'asin');
+      // Header-row guard: the table header also has leaf "SKU"/"ASIN" labels,
+      // and its cells yield multi-word or cross-label values ("product details asin").
+      if (!sku && !asin) { if (skipInfo) { skipInfo.skipped++; if (skipInfo.reasons.length < 5) skipInfo.reasons.push('empty'); } return; }
+      if (/\s/.test(sku) || /\s/.test(asin)) { if (skipInfo) { skipInfo.skipped++; if (skipInfo.reasons.length < 5) skipInfo.reasons.push('multiword:' + sku + '/' + asin); } return; }
+      if (sku === 'asin' || asin === 'sku') { if (skipInfo) { skipInfo.skipped++; if (skipInfo.reasons.length < 5) skipInfo.reasons.push('cross:' + sku + '/' + asin); } return; }
+      var key = (sku || asin || '').toUpperCase();
+      if (!key || byKey[key]) return;
+      var yourPrice = priceInputValue(row);
+      var featured = refPriceValue(row, 'featured offer');
+      var lowest = refPriceValue(row, 'lowest price');
+      var competitive = refPriceValue(row, 'competitive price');
+      var status = 'none';
+      if (featured != null && yourPrice != null) {
+        status = Math.abs(featured - yourPrice) < 0.005 ? 'win' : 'lose';
+      }
+      byKey[key] = {
+        sku: sku, asin: asin, title: titleOf(row),
+        yourPrice: yourPrice, buyboxPrice: featured, lowestPrice: lowest,
+        competitivePrice: competitive, status: status,
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }
+
+  // The JanusTable is virtualized: only the visible window of rows is in the
+  // DOM at once. Find the scrollable container and scroll through it, collecting
+  // rows at each position, until the scroll position stops changing.
+  function findScrollContainer() {
+    var all = document.querySelectorAll('*');
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].children.length === 0 && norm(all[i].textContent) === 'sku') {
+        var node = all[i];
+        while (node && node.parentElement) {
+          node = node.parentElement;
+          if (node.scrollHeight > node.clientHeight + 50) {
+            var cs = window.getComputedStyle(node);
+            if (cs.overflowY === 'auto' || cs.overflowY === 'scroll') return node;
+          }
+        }
+        break;
+      }
+    }
+    if (document.documentElement.scrollHeight > document.documentElement.clientHeight + 50) return document.documentElement;
+    return null;
+  }
+
+  function scrollCollect() {
+    return new Promise(function (resolve) {
+      var byKey = {};
+      var skipInfo = { skipped: 0, reasons: [] };
+      var container = findScrollContainer();
+      if (!container) {
+        collectVisibleProducts(byKey, skipInfo);
+        return resolve({ byKey: byKey, skipInfo: skipInfo, scrolled: false, containerInfo: null });
+      }
+      var containerInfo = container === document.documentElement
+        ? 'window'
+        : container.tagName.toLowerCase() + '.' + String(container.className || '').split(' ')[0] +
+          ' (' + container.clientHeight + 'px view, ' + container.scrollHeight + 'px content)';
+      var step = Math.max(400, Math.floor(container.clientHeight * 0.8));
+      var lastTop = -1;
+      var stable = 0;
+      var tries = 0;
+      var timer = setInterval(function () {
+        tries++;
+        collectVisibleProducts(byKey, skipInfo);
+        var top = container.scrollTop;
+        if (top === lastTop) {
+          stable++;
+          if (stable >= 3 || tries >= 120) {
+            clearInterval(timer);
+            resolve({ byKey: byKey, skipInfo: skipInfo, scrolled: true, containerInfo: containerInfo });
+          }
+        } else {
+          stable = 0;
+          lastTop = top;
+          container.scrollTop = top + step;
+        }
+      }, 600);
+    });
+  }
+
   function parseInventoryPage() {
     return waitForStableRows().then(function (skuCount) {
-      var all = Array.prototype.slice.call(document.querySelectorAll('*'));
-      var skuLabels = all.filter(function (el) {
-        return el.children.length === 0 && norm(el.textContent) === 'sku';
-      });
-      if (!skuLabels.length) {
-        logDiag('Inventory page: no SKU labels found');
-        return { ok: false, reason: 'no-sku-labels' };
-      }
-      var products = [];
-      var skipped = 0;
-      var skipReasons = [];
-      skuLabels.forEach(function (label) {
-        // Walk up from the SKU label to the row container
-        var row = label;
-        var guard = 0;
-        while (row && row.parentElement && guard < 12) {
-          row = row.parentElement;
-          guard++;
-          var t = norm(row.textContent);
-          if (t.indexOf('asin') !== -1 && t.indexOf('featured offer') !== -1 && t.indexOf('lowest price') !== -1) break;
+      return scrollCollect().then(function (collected) {
+        var products = Object.keys(collected.byKey).map(function (k) { return collected.byKey[k]; });
+        if (!products.length) {
+          logDiag('Inventory page: no SKU labels found');
+          return { ok: false, reason: 'no-sku-labels' };
         }
-        if (!row || guard >= 12) { if (skipReasons.length < 5) skipReasons.push('no-row'); skipped++; return; }
-        var sku = labelValue(row, 'sku');
-        var asin = labelValue(row, 'asin');
-        // Header-row guard: the table header also has leaf "SKU"/"ASIN" labels,
-        // and its cells yield multi-word or cross-label values ("product details asin").
-        if (!sku && !asin) { if (skipReasons.length < 5) skipReasons.push('empty'); skipped++; return; }
-        if (/\s/.test(sku) || /\s/.test(asin)) { if (skipReasons.length < 5) skipReasons.push('multiword:' + sku + '/' + asin); skipped++; return; }
-        if (sku === 'asin' || asin === 'sku') { if (skipReasons.length < 5) skipReasons.push('cross:' + sku + '/' + asin); skipped++; return; }
-        var yourPrice = priceInputValue(row);
-        var featured = refPriceValue(row, 'featured offer');
-        var lowest = refPriceValue(row, 'lowest price');
-        var competitive = refPriceValue(row, 'competitive price');
-        var status = 'none';
-        if (featured != null && yourPrice != null) {
-          status = Math.abs(featured - yourPrice) < 0.005 ? 'win' : 'lose';
-        }
-        products.push({
-          sku: sku, asin: asin, title: titleOf(row),
-          yourPrice: yourPrice, buyboxPrice: featured, lowestPrice: lowest,
-          competitivePrice: competitive, status: status,
-          updatedAt: new Date().toISOString()
-        });
-      });
+        var skipped = collected.skipInfo.skipped;
+        var skipReasons = collected.skipInfo.reasons;
 
-      var pageInfo = getPaginationInfo();
-      var result = {
-        ok: true,
-        products: products,
-        scanned: products.length,
-        skipped: skipped,
-        skipReasons: skipReasons,
-        page: pageInfo.page,
-        totalPages: pageInfo.totalPages,
-        hasNext: pageInfo.hasNext,
-        lastScan: new Date().toISOString(),
-        url: location.href
-      };
-
-      chrome.storage.local.get(STORE_KEY, function (res) {
-        var prev = (res[STORE_KEY] && res[STORE_KEY].products) || [];
-        var byKey = {};
-        prev.forEach(function (p) {
-          var k = (p.sku || p.asin || '').toUpperCase();
-          if (k) byKey[k] = p;
-        });
-        products.forEach(function (p) {
-          var k = (p.sku || p.asin || '').toUpperCase();
-          if (k) byKey[k] = p;
-        });
-        var merged = Object.keys(byKey).map(function (k) { return byKey[k]; });
-        var store = {
-          products: merged,
-          scanned: merged.length,
-          lastScan: new Date().toISOString(),
+        var pageInfo = getPaginationInfo();
+        var result = {
+          ok: true,
+          products: products,
+          scanned: products.length,
+          skipped: skipped,
+          skipReasons: skipReasons,
           page: pageInfo.page,
           totalPages: pageInfo.totalPages,
           hasNext: pageInfo.hasNext,
+          lastScan: new Date().toISOString(),
           url: location.href
         };
-        var obj = {};
-        obj[STORE_KEY] = store;
-        chrome.storage.local.set(obj);
-        logDiag('Inventory page ' + (pageInfo.page || '?') + ': ' + products.length + ' rows (' + skuCount + ' sku labels), ' + merged.length + ' total stored' + (skipped ? ', ' + skipped + ' skipped' : ''));
-      });
 
-      return result;
+        chrome.storage.local.get(STORE_KEY, function (res) {
+          var prev = (res[STORE_KEY] && res[STORE_KEY].products) || [];
+          var byKey = {};
+          prev.forEach(function (p) {
+            var k = (p.sku || p.asin || '').toUpperCase();
+            if (k) byKey[k] = p;
+          });
+          products.forEach(function (p) {
+            var k = (p.sku || p.asin || '').toUpperCase();
+            if (k) byKey[k] = p;
+          });
+          var merged = Object.keys(byKey).map(function (k) { return byKey[k]; });
+          var store = {
+            products: merged,
+            scanned: merged.length,
+            lastScan: new Date().toISOString(),
+            page: pageInfo.page,
+            totalPages: pageInfo.totalPages,
+            hasNext: pageInfo.hasNext,
+            url: location.href
+          };
+          var obj = {};
+          obj[STORE_KEY] = store;
+          chrome.storage.local.set(obj);
+          logDiag('Inventory page ' + (pageInfo.page || '?') + ': ' + products.length + ' rows (' + skuCount + ' sku labels' +
+            (collected.scrolled ? ', scrolled ' + collected.containerInfo : '') + '), ' + merged.length + ' total stored' +
+            (skipped ? ', ' + skipped + ' skipped' : ''));
+        });
+
+        return result;
+      });
     });
   }
 
