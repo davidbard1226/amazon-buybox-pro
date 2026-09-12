@@ -131,15 +131,23 @@
       if (t.indexOf('manage pricing') !== -1 && t.length < 200) mpContext = all[i].tagName + '.' + String(all[i].className || '').slice(0, 60);
     }
     var containers = Array.prototype.slice.call(document.querySelectorAll('body > div')).slice(0, 8).map(function (d) { return d.tagName + '.' + String(d.className || '').slice(0, 50); });
-    // First product card: element containing ASIN + SKU + Featured Offer text —
-    // dump its outerHTML (truncated) so we can see the exact card structure
+    // First product DATA row: find a leaf "SKU" label, walk up to the row
+    // (contains ASIN + Featured offer + Lowest price), dump its outerHTML.
+    // Skip the table header row — it also has a leaf "SKU" label and matches
+    // the same keywords, but contains the "Product details" column label.
     var cardHtml = null;
     for (var c = 0; c < all.length && !cardHtml; c++) {
-      var ct = norm(all[c].textContent);
-      if (ct.indexOf('asin') !== -1 && ct.indexOf('sku') !== -1 && ct.indexOf('featured offer') !== -1 && ct.length < 12000) {
-        var node = all[c];
-        for (var up = 0; up < 2 && node.parentElement; up++) node = node.parentElement;
-        cardHtml = node.outerHTML.slice(0, 3000);
+      var el = all[c];
+      if (el.children.length === 0 && norm(el.textContent) === 'sku') {
+        var node = el;
+        for (var up = 0; up < 12 && node.parentElement; up++) {
+          node = node.parentElement;
+          var t = norm(node.textContent);
+          if (t.indexOf('asin') !== -1 && t.indexOf('featured offer') !== -1 && t.indexOf('lowest price') !== -1) {
+            if (t.indexOf('product details') === -1) cardHtml = node.outerHTML.slice(0, 3000);
+            break;
+          }
+        }
       }
     }
     // Numeric input fields (the price inputs on the inventory page)
@@ -245,8 +253,179 @@
     return null;
   }
 
+  /* ── Manage All Inventory parser (div-based table) ──────── */
+  // co.za has no Manage Pricing page — the pricing data lives on
+  // /myinventory/inventory: a div-based table (JanusTable) with one row per
+  // product. Parsing is text-label based so it survives CSS-module hash churn.
+
+  // Find the value next to a label ("ASIN" / "SKU") inside a row.
+  function labelValue(row, label) {
+    var els = row.querySelectorAll('*');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.children.length === 0 && norm(el.textContent) === label) {
+        var node = el;
+        for (var up = 0; up < 4 && node.parentElement; up++) {
+          node = node.parentElement;
+          var t = norm(node.textContent);
+          if (t.length > label.length + 1) return t.replace(label, '').trim();
+        }
+        return '';
+      }
+    }
+    return '';
+  }
+
+  // Longest meaningful text in the row = product title.
+  function titleOf(row) {
+    var best = '';
+    var els = row.querySelectorAll('a, span, div');
+    for (var i = 0; i < els.length; i++) {
+      var t = norm(els[i].textContent);
+      if (t.length > best.length && t.length > 10 &&
+          t.indexOf('asin') === -1 && t.indexOf('sku') === -1 &&
+          t.indexOf('featured offer') === -1 && t.indexOf('lowest price') === -1 &&
+          t.indexOf('competitive price') === -1) best = t;
+    }
+    return best;
+  }
+
+  // Your price: the "Price" row's input value (VolusPriceInputComposite).
+  function priceInputValue(row) {
+    var els = row.querySelectorAll('[class*="priceInputRow"], [class*="PriceInput"]');
+    for (var i = 0; i < els.length; i++) {
+      var t = norm(els[i].textContent);
+      if (t.indexOf('price') === 0 && t.indexOf('minimum') === -1 && t.indexOf('maximum') === -1) {
+        var inp = els[i].querySelector('input') || els[i].querySelector('kat-input');
+        if (inp && inp.value != null && String(inp.value).trim()) return parsePrice(inp.value);
+        var m = t.match(/([\d][\d\s.,]*)/);
+        if (m) return parsePrice(m[0]);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // Reference price (featured offer / competitive price / lowest price):
+  // find the label element, then read the price text after it.
+  function refPriceValue(row, label) {
+    var els = row.querySelectorAll('*');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var t = norm(el.textContent);
+      if (t === label || (t.indexOf(label) === 0 && t.length < 40)) {
+        var container = el.parentElement;
+        if (container) {
+          var full = norm(container.textContent);
+          var idx = full.indexOf(label);
+          var after = idx >= 0 ? full.slice(idx + label.length) : full;
+          var m = after.match(/zar\s*([\d][\d\s.,]*)/i);
+          if (m) return parsePrice(m[1]);
+        }
+        if (el.nextElementSibling) {
+          var m2 = norm(el.nextElementSibling.textContent).match(/zar\s*([\d][\d\s.,]*)/i);
+          if (m2) return parsePrice(m2[1]);
+        }
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function parseInventoryPage() {
+    var all = Array.prototype.slice.call(document.querySelectorAll('*'));
+    var skuLabels = all.filter(function (el) {
+      return el.children.length === 0 && norm(el.textContent) === 'sku';
+    });
+    if (!skuLabels.length) {
+      logDiag('Inventory page: no SKU labels found');
+      return { ok: false, reason: 'no-sku-labels' };
+    }
+    var products = [];
+    var skipped = 0;
+    var skipReasons = [];
+    skuLabels.forEach(function (label) {
+      // Walk up from the SKU label to the row container
+      var row = label;
+      var guard = 0;
+      while (row && row.parentElement && guard < 12) {
+        row = row.parentElement;
+        guard++;
+        var t = norm(row.textContent);
+        if (t.indexOf('asin') !== -1 && t.indexOf('featured offer') !== -1 && t.indexOf('lowest price') !== -1) break;
+      }
+      if (!row || guard >= 12) { if (skipReasons.length < 5) skipReasons.push('no-row'); skipped++; return; }
+      var sku = labelValue(row, 'sku');
+      var asin = labelValue(row, 'asin');
+      // Header-row guard: the table header also has leaf "SKU"/"ASIN" labels,
+      // and its cells yield multi-word or cross-label values ("product details asin").
+      if (!sku && !asin) { if (skipReasons.length < 5) skipReasons.push('empty'); skipped++; return; }
+      if (/\s/.test(sku) || /\s/.test(asin)) { if (skipReasons.length < 5) skipReasons.push('multiword:' + sku + '/' + asin); skipped++; return; }
+      if (sku === 'asin' || asin === 'sku') { if (skipReasons.length < 5) skipReasons.push('cross:' + sku + '/' + asin); skipped++; return; }
+      var yourPrice = priceInputValue(row);
+      var featured = refPriceValue(row, 'featured offer');
+      var lowest = refPriceValue(row, 'lowest price');
+      var competitive = refPriceValue(row, 'competitive price');
+      var status = 'none';
+      if (featured != null && yourPrice != null) {
+        status = Math.abs(featured - yourPrice) < 0.005 ? 'win' : 'lose';
+      }
+      products.push({
+        sku: sku, asin: asin, title: titleOf(row),
+        yourPrice: yourPrice, buyboxPrice: featured, lowestPrice: lowest,
+        competitivePrice: competitive, status: status,
+        updatedAt: new Date().toISOString()
+      });
+    });
+
+    var pageInfo = getPaginationInfo();
+    var result = {
+      ok: true,
+      products: products,
+      scanned: products.length,
+      skipped: skipped,
+      skipReasons: skipReasons,
+      page: pageInfo.page,
+      totalPages: pageInfo.totalPages,
+      hasNext: pageInfo.hasNext,
+      lastScan: new Date().toISOString(),
+      url: location.href
+    };
+
+    chrome.storage.local.get(STORE_KEY, function (res) {
+      var prev = (res[STORE_KEY] && res[STORE_KEY].products) || [];
+      var byKey = {};
+      prev.forEach(function (p) {
+        var k = (p.sku || p.asin || '').toUpperCase();
+        if (k) byKey[k] = p;
+      });
+      products.forEach(function (p) {
+        var k = (p.sku || p.asin || '').toUpperCase();
+        if (k) byKey[k] = p;
+      });
+      var merged = Object.keys(byKey).map(function (k) { return byKey[k]; });
+      var store = {
+        products: merged,
+        scanned: merged.length,
+        lastScan: new Date().toISOString(),
+        page: pageInfo.page,
+        totalPages: pageInfo.totalPages,
+        hasNext: pageInfo.hasNext,
+        url: location.href
+      };
+      var obj = {};
+      obj[STORE_KEY] = store;
+      chrome.storage.local.set(obj);
+      logDiag('Inventory page ' + (pageInfo.page || '?') + ': ' + products.length + ' rows, ' + merged.length + ' total stored' + (skipped ? ', ' + skipped + ' skipped' : ''));
+    });
+
+    return result;
+  }
+
   /* ── main parse ─────────────────────────────────────────── */
   function parsePage() {
+    // co.za: the pricing data lives on Manage All Inventory
+    if (/myinventory\/inventory/i.test(location.href)) return parseInventoryPage();
     var table = findPricingTable();
     if (!table) {
       logDiag('No pricing table found on ' + location.href);
@@ -413,6 +592,7 @@
     // stays on /amazonsell/business even when Manage Pricing is displayed.
     if (/\/pricing\/managepricing/i.test(location.href)) return true;
     if (/\/pricing\/pricing/i.test(location.href)) return true;
+    if (/myinventory\/inventory/i.test(location.href)) return true;
     return !!findPricingTable();
   }
 
