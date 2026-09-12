@@ -44,6 +44,7 @@ function writeProbeDiag(probe) {
     ' keywords=[' + ((d.keywords || []).join(',')) + ']' +
     (d.tables && d.tables.length ? ' firstTableHeaders="' + d.tables[0].headers + '"' : '') +
     (d.cardHtml ? ' cardHtml="' + d.cardHtml.replace(/"/g, "'") + '"' : '') +
+    (d.priceInputs && d.priceInputs.length ? ' priceInputs=[' + d.priceInputs.join(' | ') + ']' : '') +
     ' bodySample="' + (d.bodySample || '') + '"';
   // Render directly — guaranteed visible even if storage is unavailable
   const t = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -126,8 +127,15 @@ function refresh() {
       let tbl = ' no tables on page';
       if (d.tables && d.tables.length) tbl = ' tables: ' + d.tables.map((t) => '[' + t.headers + ']').join(' ');
       else if (d.grids && d.grids.length) tbl = ' grid(s): ' + d.grids.map((g) => '[' + g.role + ' rows=' + g.rows + ' cells=' + g.cells + ']').join(' ');
-      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ') @ ' + probe.url + '.' + tbl + ' Open Products → Manage All Inventory (the page with all products + prices).';
-      $('tabHint').style.color = '#ff9500';
+      const isInv = /myinventory\/inventory/.test(probe.url);
+      if (isInv) {
+        const nPrice = (d.clsHits && d.clsHits.price) || 0;
+        $('tabHint').textContent = '✓ On Manage All Inventory — card layout (' + nPrice + ' price elements). Parser targets this page.';
+        $('tabHint').style.color = '#00e5a0';
+      } else {
+        $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ') @ ' + probe.url + '.' + tbl + ' Open Products → Manage All Inventory (the page with all products + prices).';
+        $('tabHint').style.color = '#ff9500';
+      }
     } else {
       $('tabHint').textContent = '⚠ Cannot reach the Seller Central tab — reload it (F5) and try again.';
       $('tabHint').style.color = '#ff4d6d';
