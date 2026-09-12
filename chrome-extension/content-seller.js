@@ -332,94 +332,125 @@
     return null;
   }
 
-  function parseInventoryPage() {
-    var all = Array.prototype.slice.call(document.querySelectorAll('*'));
-    var skuLabels = all.filter(function (el) {
-      return el.children.length === 0 && norm(el.textContent) === 'sku';
-    });
-    if (!skuLabels.length) {
-      logDiag('Inventory page: no SKU labels found');
-      return { ok: false, reason: 'no-sku-labels' };
+  // Count leaf elements whose text is exactly "SKU" — one per data row.
+  function countSkuLabels() {
+    var all = document.querySelectorAll('*');
+    var n = 0;
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].children.length === 0 && norm(all[i].textContent) === 'sku') n++;
     }
-    var products = [];
-    var skipped = 0;
-    var skipReasons = [];
-    skuLabels.forEach(function (label) {
-      // Walk up from the SKU label to the row container
-      var row = label;
-      var guard = 0;
-      while (row && row.parentElement && guard < 12) {
-        row = row.parentElement;
-        guard++;
-        var t = norm(row.textContent);
-        if (t.indexOf('asin') !== -1 && t.indexOf('featured offer') !== -1 && t.indexOf('lowest price') !== -1) break;
-      }
-      if (!row || guard >= 12) { if (skipReasons.length < 5) skipReasons.push('no-row'); skipped++; return; }
-      var sku = labelValue(row, 'sku');
-      var asin = labelValue(row, 'asin');
-      // Header-row guard: the table header also has leaf "SKU"/"ASIN" labels,
-      // and its cells yield multi-word or cross-label values ("product details asin").
-      if (!sku && !asin) { if (skipReasons.length < 5) skipReasons.push('empty'); skipped++; return; }
-      if (/\s/.test(sku) || /\s/.test(asin)) { if (skipReasons.length < 5) skipReasons.push('multiword:' + sku + '/' + asin); skipped++; return; }
-      if (sku === 'asin' || asin === 'sku') { if (skipReasons.length < 5) skipReasons.push('cross:' + sku + '/' + asin); skipped++; return; }
-      var yourPrice = priceInputValue(row);
-      var featured = refPriceValue(row, 'featured offer');
-      var lowest = refPriceValue(row, 'lowest price');
-      var competitive = refPriceValue(row, 'competitive price');
-      var status = 'none';
-      if (featured != null && yourPrice != null) {
-        status = Math.abs(featured - yourPrice) < 0.005 ? 'win' : 'lose';
-      }
-      products.push({
-        sku: sku, asin: asin, title: titleOf(row),
-        yourPrice: yourPrice, buyboxPrice: featured, lowestPrice: lowest,
-        competitivePrice: competitive, status: status,
-        updatedAt: new Date().toISOString()
-      });
+    return n;
+  }
+
+  // The inventory table renders rows progressively (lazy loading) — wait
+  // until the row count stops growing before parsing. 3 stable reads,
+  // 500ms apart, max 30s.
+  function waitForStableRows() {
+    return new Promise(function (resolve) {
+      var stable = 0, prev = -1, tries = 0;
+      var timer = setInterval(function () {
+        tries++;
+        var n = countSkuLabels();
+        if (n === prev && n > 0) stable++;
+        else { stable = 0; prev = n; }
+        if (stable >= 3 || tries >= 60) {
+          clearInterval(timer);
+          resolve(n);
+        }
+      }, 500);
     });
+  }
 
-    var pageInfo = getPaginationInfo();
-    var result = {
-      ok: true,
-      products: products,
-      scanned: products.length,
-      skipped: skipped,
-      skipReasons: skipReasons,
-      page: pageInfo.page,
-      totalPages: pageInfo.totalPages,
-      hasNext: pageInfo.hasNext,
-      lastScan: new Date().toISOString(),
-      url: location.href
-    };
+  function parseInventoryPage() {
+    return waitForStableRows().then(function (skuCount) {
+      var all = Array.prototype.slice.call(document.querySelectorAll('*'));
+      var skuLabels = all.filter(function (el) {
+        return el.children.length === 0 && norm(el.textContent) === 'sku';
+      });
+      if (!skuLabels.length) {
+        logDiag('Inventory page: no SKU labels found');
+        return { ok: false, reason: 'no-sku-labels' };
+      }
+      var products = [];
+      var skipped = 0;
+      var skipReasons = [];
+      skuLabels.forEach(function (label) {
+        // Walk up from the SKU label to the row container
+        var row = label;
+        var guard = 0;
+        while (row && row.parentElement && guard < 12) {
+          row = row.parentElement;
+          guard++;
+          var t = norm(row.textContent);
+          if (t.indexOf('asin') !== -1 && t.indexOf('featured offer') !== -1 && t.indexOf('lowest price') !== -1) break;
+        }
+        if (!row || guard >= 12) { if (skipReasons.length < 5) skipReasons.push('no-row'); skipped++; return; }
+        var sku = labelValue(row, 'sku');
+        var asin = labelValue(row, 'asin');
+        // Header-row guard: the table header also has leaf "SKU"/"ASIN" labels,
+        // and its cells yield multi-word or cross-label values ("product details asin").
+        if (!sku && !asin) { if (skipReasons.length < 5) skipReasons.push('empty'); skipped++; return; }
+        if (/\s/.test(sku) || /\s/.test(asin)) { if (skipReasons.length < 5) skipReasons.push('multiword:' + sku + '/' + asin); skipped++; return; }
+        if (sku === 'asin' || asin === 'sku') { if (skipReasons.length < 5) skipReasons.push('cross:' + sku + '/' + asin); skipped++; return; }
+        var yourPrice = priceInputValue(row);
+        var featured = refPriceValue(row, 'featured offer');
+        var lowest = refPriceValue(row, 'lowest price');
+        var competitive = refPriceValue(row, 'competitive price');
+        var status = 'none';
+        if (featured != null && yourPrice != null) {
+          status = Math.abs(featured - yourPrice) < 0.005 ? 'win' : 'lose';
+        }
+        products.push({
+          sku: sku, asin: asin, title: titleOf(row),
+          yourPrice: yourPrice, buyboxPrice: featured, lowestPrice: lowest,
+          competitivePrice: competitive, status: status,
+          updatedAt: new Date().toISOString()
+        });
+      });
 
-    chrome.storage.local.get(STORE_KEY, function (res) {
-      var prev = (res[STORE_KEY] && res[STORE_KEY].products) || [];
-      var byKey = {};
-      prev.forEach(function (p) {
-        var k = (p.sku || p.asin || '').toUpperCase();
-        if (k) byKey[k] = p;
-      });
-      products.forEach(function (p) {
-        var k = (p.sku || p.asin || '').toUpperCase();
-        if (k) byKey[k] = p;
-      });
-      var merged = Object.keys(byKey).map(function (k) { return byKey[k]; });
-      var store = {
-        products: merged,
-        scanned: merged.length,
-        lastScan: new Date().toISOString(),
+      var pageInfo = getPaginationInfo();
+      var result = {
+        ok: true,
+        products: products,
+        scanned: products.length,
+        skipped: skipped,
+        skipReasons: skipReasons,
         page: pageInfo.page,
         totalPages: pageInfo.totalPages,
         hasNext: pageInfo.hasNext,
+        lastScan: new Date().toISOString(),
         url: location.href
       };
-      var obj = {};
-      obj[STORE_KEY] = store;
-      chrome.storage.local.set(obj);
-      logDiag('Inventory page ' + (pageInfo.page || '?') + ': ' + products.length + ' rows, ' + merged.length + ' total stored' + (skipped ? ', ' + skipped + ' skipped' : ''));
-    });
 
-    return result;
+      chrome.storage.local.get(STORE_KEY, function (res) {
+        var prev = (res[STORE_KEY] && res[STORE_KEY].products) || [];
+        var byKey = {};
+        prev.forEach(function (p) {
+          var k = (p.sku || p.asin || '').toUpperCase();
+          if (k) byKey[k] = p;
+        });
+        products.forEach(function (p) {
+          var k = (p.sku || p.asin || '').toUpperCase();
+          if (k) byKey[k] = p;
+        });
+        var merged = Object.keys(byKey).map(function (k) { return byKey[k]; });
+        var store = {
+          products: merged,
+          scanned: merged.length,
+          lastScan: new Date().toISOString(),
+          page: pageInfo.page,
+          totalPages: pageInfo.totalPages,
+          hasNext: pageInfo.hasNext,
+          url: location.href
+        };
+        var obj = {};
+        obj[STORE_KEY] = store;
+        chrome.storage.local.set(obj);
+        logDiag('Inventory page ' + (pageInfo.page || '?') + ': ' + products.length + ' rows (' + skuCount + ' sku labels), ' + merged.length + ' total stored' + (skipped ? ', ' + skipped + ' skipped' : ''));
+      });
+
+      return result;
+    });
   }
 
   /* ── main parse ─────────────────────────────────────────── */
@@ -537,7 +568,11 @@
   chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     if (msg && msg.type === 'BBP_PARSE_PAGE') {
       var result = parsePage();
-      sendResponse(result);
+      if (result && typeof result.then === 'function') {
+        result.then(function (r) { sendResponse(r); });
+      } else {
+        sendResponse(result);
+      }
       return true;
     }
     if (msg && msg.type === 'BBP_CLICK_NEXT') {
@@ -597,14 +632,15 @@
   }
 
   if (isPricingPage() && /sellercentral\.amazon\.(co\.za|com)/i.test(location.href)) {
-    // Wait for the table to render (SPA)
+    // Wait for the table (or the inventory SKU labels) to render (SPA)
     var tries = 0;
     var timer = setInterval(function () {
       tries++;
       var table = findPricingTable();
-      if (table || tries > 20) {
+      var skuReady = /myinventory\/inventory/i.test(location.href) && countSkuLabels() > 1;
+      if (table || skuReady || tries > 20) {
         clearInterval(timer);
-        if (table) parsePage();
+        if (table || skuReady) parsePage();
         else logDiag('Pricing page loaded but no table after ' + tries + ' tries');
       }
     }, 500);
