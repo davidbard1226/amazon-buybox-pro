@@ -43,6 +43,7 @@ function writeProbeDiag(probe) {
     ' mpContext=' + (d.mpContext || 'none') +
     ' keywords=[' + ((d.keywords || []).join(',')) + ']' +
     (d.tables && d.tables.length ? ' firstTableHeaders="' + d.tables[0].headers + '"' : '') +
+    (d.cardHtml ? ' cardHtml="' + d.cardHtml.replace(/"/g, "'") + '"' : '') +
     ' bodySample="' + (d.bodySample || '') + '"';
   // Render directly — guaranteed visible even if storage is unavailable
   const t = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -125,7 +126,7 @@ function refresh() {
       let tbl = ' no tables on page';
       if (d.tables && d.tables.length) tbl = ' tables: ' + d.tables.map((t) => '[' + t.headers + ']').join(' ');
       else if (d.grids && d.grids.length) tbl = ' grid(s): ' + d.grids.map((g) => '[' + g.role + ' rows=' + g.rows + ' cells=' + g.cells + ']').join(' ');
-      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ') @ ' + probe.url + '.' + tbl + ' Navigate: Pricing → Manage Pricing.';
+      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ') @ ' + probe.url + '.' + tbl + ' Open Products → Manage All Inventory (the page with all products + prices).';
       $('tabHint').style.color = '#ff9500';
     } else {
       $('tabHint').textContent = '⚠ Cannot reach the Seller Central tab — reload it (F5) and try again.';
@@ -150,9 +151,10 @@ $('stopBtn').addEventListener('click', () => {
 });
 
 $('openPricingBtn').addEventListener('click', () => {
-  // amazon.co.za doesn't expose /pricing/managepricing directly — open the
-  // Seller Central home; the user clicks Pricing → Manage Pricing in the menu.
-  chrome.tabs.create({ url: 'https://sellercentral.amazon.co.za/amazonsell/business' });
+  // co.za has no /pricing/managepricing — the pricing data lives on the
+  // Manage All Inventory page (all products with price / featured offer /
+  // competitive price / lowest price).
+  chrome.tabs.create({ url: 'https://sellercentral.amazon.co.za/myinventory/inventory?fulfilledBy=all&page=1&pageSize=100&sort=date_created_desc&status=all' });
 });
 
 $('parseBtn').addEventListener('click', async () => {

@@ -6,8 +6,8 @@
 
 'use strict';
 
-const SELLER_URLS = ['https://sellercentral.amazon.co.za/amazonsell/business'];
-const MAX_PAGES = 40;          // 3000 SKUs @ 100/page = 30 pages; headroom for 4000
+const SELLER_URLS = ['https://sellercentral.amazon.co.za/myinventory/inventory?fulfilledBy=all&page=1&pageSize=100&sort=date_created_desc&status=all'];
+const MAX_PAGES = 50;          // 3973 SKUs @ 100/page = 40 pages; headroom
 const PAGE_DELAY_MS = 3000;    // let the SPA render between pages
 
 let scanState = { running: false, page: 0, totalPages: null, scanned: 0, startedAt: null, stopRequested: false };

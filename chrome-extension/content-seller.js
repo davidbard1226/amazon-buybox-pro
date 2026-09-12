@@ -131,6 +131,17 @@
       if (t.indexOf('manage pricing') !== -1 && t.length < 200) mpContext = all[i].tagName + '.' + String(all[i].className || '').slice(0, 60);
     }
     var containers = Array.prototype.slice.call(document.querySelectorAll('body > div')).slice(0, 8).map(function (d) { return d.tagName + '.' + String(d.className || '').slice(0, 50); });
+    // First product card: element containing both ASIN and SKU labels — dump its
+    // outerHTML (truncated) so we can see the exact card structure to parse
+    var cardHtml = null;
+    for (var c = 0; c < all.length && !cardHtml; c++) {
+      var ct = norm(all[c].textContent);
+      if (ct.indexOf('asin:') !== -1 && ct.indexOf('sku:') !== -1 && ct.length < 4000) {
+        var node = all[c];
+        for (var up = 0; up < 3 && node.parentElement; up++) node = node.parentElement;
+        cardHtml = node.outerHTML.slice(0, 2000);
+      }
+    }
     var visText = visibleText();
     var keywords = ['manage pricing', 'buy box', 'your price', 'lowest price', 'sku', 'asin', 'pricing', 'inventory'];
     var found = keywords.filter(function (kw) { return visText.indexOf(kw) !== -1; });
@@ -144,6 +155,7 @@
       skuAsinEls: skuAsinEls,
       mpContext: mpContext,
       containers: containers,
+      cardHtml: cardHtml,
       keywords: found,
       bodyLen: visText.length,
       bodySample: visText.slice(0, 500)
