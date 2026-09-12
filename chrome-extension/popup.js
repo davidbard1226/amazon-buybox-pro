@@ -38,6 +38,9 @@ function writeProbeDiag(probe) {
     ' tables=' + (d.tables ? d.tables.length : 0) +
     ' grids=' + (d.grids ? d.grids.length : 0) +
     ' clsHits={' + Object.keys(d.clsHits || {}).map((k) => k + ':' + d.clsHits[k]).join(',') + '}' +
+    ' priceEls=[' + ((d.priceEls || []).join(' | ')) + ']' +
+    ' skuAsinEls=[' + ((d.skuAsinEls || []).join(' | ')) + ']' +
+    ' mpContext=' + (d.mpContext || 'none') +
     ' keywords=[' + ((d.keywords || []).join(',')) + ']' +
     (d.tables && d.tables.length ? ' firstTableHeaders="' + d.tables[0].headers + '"' : '') +
     ' bodySample="' + (d.bodySample || '') + '"';
@@ -65,17 +68,19 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function probeTab(tab) {
   // Seller Central is an SPA — the URL does NOT change on navigation, so we
-  // probe the page CONTENT for the pricing table. Auto-inject the content
-  // script first (tabs opened before the extension loaded have no script).
+  // probe the page CONTENT for the pricing table. Try the content script
+  // first; only inject if it's missing (avoids re-injecting every 2s).
   if (!tab || !tab.id) return null;
-  try {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content-seller.js'] });
-  } catch (e) { /* already injected or not injectable */ }
-  await sleep(600);
   try {
     return await chrome.tabs.sendMessage(tab.id, { type: 'BBP_PROBE' });
   } catch (e) {
-    return null;
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content-seller.js'] });
+      await sleep(600);
+      return await chrome.tabs.sendMessage(tab.id, { type: 'BBP_PROBE' });
+    } catch (e2) {
+      return null;
+    }
   }
 }
 
@@ -120,7 +125,7 @@ function refresh() {
       let tbl = ' no tables on page';
       if (d.tables && d.tables.length) tbl = ' tables: ' + d.tables.map((t) => '[' + t.headers + ']').join(' ');
       else if (d.grids && d.grids.length) tbl = ' grid(s): ' + d.grids.map((g) => '[' + g.role + ' rows=' + g.rows + ' cells=' + g.cells + ']').join(' ');
-      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ').' + tbl + ' Navigate: Pricing → Manage Pricing.';
+      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ') @ ' + probe.url + '.' + tbl + ' Navigate: Pricing → Manage Pricing.';
       $('tabHint').style.color = '#ff9500';
     } else {
       $('tabHint').textContent = '⚠ Cannot reach the Seller Central tab — reload it (F5) and try again.';

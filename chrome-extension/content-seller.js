@@ -73,6 +73,15 @@
     return null;
   }
 
+  // Visible text only — strips scripts/styles so we see what's actually displayed
+  function visibleText() {
+    var clone = document.body ? document.body.cloneNode(true) : null;
+    if (!clone) return '';
+    var kills = clone.querySelectorAll('script, style, noscript, svg, canvas, iframe');
+    for (var i = 0; i < kills.length; i++) kills[i].parentNode.removeChild(kills[i]);
+    return norm(clone.textContent);
+  }
+
   // Full page structure dump — used to tune selectors per marketplace.
   function dumpPage() {
     var tables = Array.prototype.slice.call(document.querySelectorAll('table'));
@@ -105,18 +114,39 @@
       var els = document.querySelectorAll('[class*="' + kw + '"]');
       if (els.length) clsHits[kw] = els.length;
     });
-    var bodyText = norm(document.body ? document.body.textContent : '');
+    // Sample the price-class elements (what are they?)
+    var priceEls = Array.prototype.slice.call(document.querySelectorAll('[class*="price"]')).slice(0, 5).map(function (el) {
+      return el.tagName + '.' + String(el.className || '').slice(0, 60) + '="' + norm(el.textContent).slice(0, 60) + '"';
+    });
+    // Elements whose text is exactly SKU / ASIN (column headers?)
+    var skuAsinEls = Array.prototype.slice.call(document.querySelectorAll('*')).filter(function (el) {
+      var t = norm(el.textContent);
+      return t === 'sku' || t === 'asin';
+    }).slice(0, 10).map(function (el) { return el.tagName + '.' + String(el.className || '').slice(0, 40); });
+    // Where does "manage pricing" text live?
+    var mpContext = null;
+    var all = document.querySelectorAll('*');
+    for (var i = 0; i < all.length && !mpContext; i++) {
+      var t = norm(all[i].textContent);
+      if (t.indexOf('manage pricing') !== -1 && t.length < 200) mpContext = all[i].tagName + '.' + String(all[i].className || '').slice(0, 60);
+    }
+    var containers = Array.prototype.slice.call(document.querySelectorAll('body > div')).slice(0, 8).map(function (d) { return d.tagName + '.' + String(d.className || '').slice(0, 50); });
+    var visText = visibleText();
     var keywords = ['manage pricing', 'buy box', 'your price', 'lowest price', 'sku', 'asin', 'pricing', 'inventory'];
-    var found = keywords.filter(function (kw) { return bodyText.indexOf(kw) !== -1; });
+    var found = keywords.filter(function (kw) { return visText.indexOf(kw) !== -1; });
     return {
       title: document.title,
       url: location.href,
       tables: tinfo,
       grids: gridInfo,
       clsHits: clsHits,
+      priceEls: priceEls,
+      skuAsinEls: skuAsinEls,
+      mpContext: mpContext,
+      containers: containers,
       keywords: found,
-      bodyLen: bodyText.length,
-      bodySample: bodyText.slice(0, 400)
+      bodyLen: visText.length,
+      bodySample: visText.slice(0, 500)
     };
   }
 
@@ -370,7 +400,7 @@
     return !!findPricingTable();
   }
 
-  if (isPricingPage()) {
+  if (isPricingPage() && /sellercentral\.amazon\.(co\.za|com)/i.test(location.href)) {
     // Wait for the table to render (SPA)
     var tries = 0;
     var timer = setInterval(function () {
