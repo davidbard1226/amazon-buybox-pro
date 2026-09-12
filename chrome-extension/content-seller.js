@@ -52,24 +52,66 @@
   }
 
   function findPricingTable() {
-    // Prefer the known pricing table id, else scan all tables for a
-    // header containing SKU / ASIN.
+    // 1) Known pricing table id
     var byId = document.getElementById('pricing-table');
     if (byId) return byId;
-    var tables = document.querySelectorAll('table');
+    var tables = Array.prototype.slice.call(document.querySelectorAll('table'));
+    // 2) Header row contains SKU / ASIN
     for (var i = 0; i < tables.length; i++) {
       var ths = tables[i].querySelectorAll('thead th, thead td');
       var txt = '';
       for (var j = 0; j < ths.length; j++) txt += ' ' + norm(ths[j].textContent);
       if (txt.indexOf('sku') !== -1 || txt.indexOf('asin') !== -1) return tables[i];
     }
+    // 3) Any table with pricing keywords in its header cells
+    for (var k = 0; k < tables.length; k++) {
+      var hdrs = tables[k].querySelectorAll('th, td');
+      var htxt = '';
+      for (var m = 0; m < hdrs.length; m++) htxt += ' ' + norm(hdrs[m].textContent);
+      if (htxt.indexOf('your price') !== -1 || htxt.indexOf('buy box') !== -1 || htxt.indexOf('lowest price') !== -1) return tables[k];
+    }
     return null;
+  }
+
+  // Full page structure dump — used to tune selectors per marketplace.
+  function dumpPage() {
+    var tables = Array.prototype.slice.call(document.querySelectorAll('table'));
+    var tinfo = tables.slice(0, 10).map(function (t) {
+      var hdrs = Array.prototype.slice.call(t.querySelectorAll('thead th, thead td')).map(function (c) { return norm(c.textContent); });
+      if (hdrs.length === 0) {
+        var firstRow = t.querySelector('tr');
+        if (firstRow) hdrs = Array.prototype.slice.call(firstRow.querySelectorAll('th, td')).map(function (c) { return norm(c.textContent); });
+      }
+      return {
+        id: t.id || '',
+        cls: String(t.className || ''),
+        headers: hdrs.join(' | '),
+        rows: t.querySelectorAll('tbody tr').length
+      };
+    });
+    var bodyText = norm(document.body ? document.body.textContent : '');
+    var keywords = ['manage pricing', 'buy box', 'your price', 'lowest price', 'sku', 'asin', 'pricing', 'inventory'];
+    var found = keywords.filter(function (kw) { return bodyText.indexOf(kw) !== -1; });
+    return {
+      title: document.title,
+      url: location.href,
+      tables: tinfo,
+      keywords: found,
+      bodyLen: bodyText.length
+    };
   }
 
   function getHeaderMap(table) {
     var thead = table.querySelector('thead');
-    if (!thead) return null;
-    var cells = thead.querySelectorAll('th, td');
+    var cells;
+    if (thead) {
+      cells = thead.querySelectorAll('th, td');
+    } else {
+      // No thead: treat the first row's cells as the header row
+      var firstRow = table.querySelector('tr');
+      if (!firstRow) return null;
+      cells = firstRow.querySelectorAll('th, td');
+    }
     var map = {};
     for (var i = 0; i < cells.length; i++) {
       var t = norm(cells[i].textContent);
@@ -77,9 +119,9 @@
       if (t === 'sku' || t.indexOf('sku') === 0) map.sku = i;
       else if (t === 'asin' || t.indexOf('asin') === 0) map.asin = i;
       else if (t.indexOf('product name') !== -1 || t.indexOf('title') !== -1) map.title = i;
-      else if (t.indexOf('your price') !== -1) map.yourPrice = i;
+      else if (t.indexOf('your price') !== -1 || t === 'price') map.yourPrice = i;
       else if (t.indexOf('buy box price') !== -1 || t.indexOf('buybox price') !== -1) map.buyboxPrice = i;
-      else if (t.indexOf('lowest price') !== -1) map.lowestPrice = i;
+      else if (t.indexOf('lowest') !== -1) map.lowestPrice = i;
       else if (t === 'buy box' || t.indexOf('buy box') === 0 || t === 'buybox') map.buybox = i;
       else if (t === 'status' || t.indexOf('status') === 0) map.status = i;
       else if (t.indexOf('condition') !== -1) map.condition = i;
@@ -91,13 +133,20 @@
 
   function getBodyRows(table) {
     var tbody = table.querySelector('tbody');
-    if (tbody) return Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-    // Fallback: rows after thead
-    var rows = Array.prototype.slice.call(table.querySelectorAll('tr'));
-    var thead = table.querySelector('thead');
-    if (thead) {
-      var headRow = thead.querySelector('tr');
-      if (headRow) rows = rows.filter(function (r) { return r !== headRow; });
+    var rows;
+    if (tbody) {
+      rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    } else {
+      // No tbody — the first row is the header row
+      rows = Array.prototype.slice.call(table.querySelectorAll('tr'));
+      rows.shift();
+    }
+    // Drop a leading header row (all <th> cells) if present — e.g. an
+    // implicit tbody that includes the header row
+    if (rows.length) {
+      var first = rows[0];
+      var cells = first.querySelectorAll('th, td');
+      if (cells.length && first.querySelectorAll('th').length === cells.length) rows.shift();
     }
     return rows;
   }
@@ -260,12 +309,18 @@
       // change when you navigate to Manage Pricing — only the table matters.
       var table = findPricingTable();
       var map = table ? getHeaderMap(table) : null;
+      var dump = dumpPage();
+      logDiag('PROBE: title="' + dump.title + '" url=' + dump.url +
+        ' tables=' + dump.tables.length +
+        ' keywords=[' + dump.keywords.join(',') + ']' +
+        (dump.tables.length ? ' firstTableHeaders="' + dump.tables[0].headers + '"' : ''));
       sendResponse({
         url: location.href,
         hasTable: !!table,
         headers: map ? Object.keys(map).join(',') : null,
         rows: table ? getBodyRows(table).length : 0,
-        title: document.title
+        title: document.title,
+        dump: dump
       });
       return true;
     }

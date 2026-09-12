@@ -91,12 +91,15 @@ function refresh() {
       $('tabHint').textContent = '✓ Pricing table found — ' + probe.rows + ' rows, headers: ' + (probe.headers || '?') + '. Ready to scan!';
       $('tabHint').style.color = '#00e5a0';
     } else if (probe) {
-      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table on this page (' + probe.title + '). Navigate: Pricing → Manage Pricing (or Inventory → Manage Inventory → Manage Pricing link).';
+      const d = probe.dump || {};
+      const tbl = (d.tables && d.tables.length) ? (' tables: ' + d.tables.map((t) => '[' + t.headers + ']').join(' ')) : ' no tables on page';
+      $('tabHint').textContent = '⚠ On Seller Central but NO pricing table (' + (d.title || probe.title) + ').' + tbl + ' Navigate: Pricing → Manage Pricing.';
       $('tabHint').style.color = '#ff9500';
     } else {
       $('tabHint').textContent = '⚠ Cannot reach the Seller Central tab — reload it (F5) and try again.';
       $('tabHint').style.color = '#ff4d6d';
     }
+    showDiag(); // re-read diagnostics after the probe wrote its entry
   });
 
   showDiag();
