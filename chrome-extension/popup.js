@@ -30,7 +30,9 @@ function showDiag() {
 
 // Write the PROBE diagnostics line from the probe response itself — avoids the
 // race where the content script's async storage write lands after showDiag reads.
+// Renders directly into the popup (no storage dependency) AND persists for the dashboard.
 function writeProbeDiag(probe) {
+  if (!probe) return;
   const d = probe.dump || {};
   const msg = 'PROBE: title="' + (d.title || probe.title) + '" url=' + probe.url +
     ' tables=' + (d.tables ? d.tables.length : 0) +
@@ -39,10 +41,15 @@ function writeProbeDiag(probe) {
     ' keywords=[' + ((d.keywords || []).join(',')) + ']' +
     (d.tables && d.tables.length ? ' firstTableHeaders="' + d.tables[0].headers + '"' : '') +
     ' bodySample="' + (d.bodySample || '') + '"';
+  // Render directly — guaranteed visible even if storage is unavailable
+  const t = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const el = $('diag');
+  el.innerHTML = '<div style="color:#f59e0b">[' + t + '] ' + msg.replace(/</g, '&lt;') + '</div>' + el.innerHTML;
+  // Persist for the dashboard diagnostics panel
   chrome.storage.local.get(DIAG_KEY, (res) => {
     const arr = (res[DIAG_KEY] || []).slice(-50);
     arr.push({ t: new Date().toISOString(), msg: msg, url: probe.url });
-    chrome.storage.local.set({ [DIAG_KEY]: arr }, () => showDiag());
+    chrome.storage.local.set({ [DIAG_KEY]: arr });
   });
 }
 
@@ -206,3 +213,6 @@ $('copyDiagBtn').addEventListener('click', () => {
 
 refresh();
 setInterval(refresh, 2000);
+
+// Show the extension version so we can verify which code is running
+$('ver').textContent = 'v' + chrome.runtime.getManifest().version;

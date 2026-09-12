@@ -997,7 +997,10 @@ function updateBridgeBadge() {
   } else {
     badge.textContent = '🔌 extension: —';
     badge.className = 'badge';
-    $('bridgeStatus').innerHTML = 'Extension bridge: <b>not detected</b>. Load the extension and open this page in the same Chrome profile.';
+    var isFile = location.protocol === 'file:';
+    $('bridgeStatus').innerHTML = 'Extension bridge: <b>not detected</b>.' + (isFile
+      ? ' This page is opened as a file — open it in your normal Chrome (not a preview browser) and make sure the extension has <b>Allow access to file URLs</b> enabled: chrome://extensions → Amazon BuyBox Pro → Details → toggle it on, then reload this page.'
+      : ' Load the extension and open this page in the same Chrome profile.');
   }
 }
 function pullFromExtension() {
